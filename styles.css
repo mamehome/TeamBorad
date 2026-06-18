@@ -1814,3 +1814,44 @@ body[data-surface="futsal"] #board{
 .color-row{display:grid;grid-template-columns:58px 1fr;gap:8px;}
 .color-row input[type="color"]{width:58px;height:42px;padding:2px;border:0;border-radius:12px;background:#fff;}
 .color-row button{border-radius:12px;}
+
+
+/* TeamBoard v27 year master / TOP fix */
+.year-master-card{
+  grid-column:1 / -1;
+}
+.year-form-row{
+  display:grid;
+  grid-template-columns:minmax(160px,260px) 160px;
+  gap:12px;
+  align-items:end;
+}
+.year-master-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:14px;
+}
+.year-master-item{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:999px;
+  background:rgba(5,50,24,.06);
+  border:1px solid rgba(10,60,30,.10);
+  font-weight:900;
+}
+.year-master-item.active{
+  background:#0f6f37;
+  color:white;
+}
+.year-master-item button{
+  padding:6px 8px;
+  border-radius:999px;
+}
+@media(max-width:760px){
+  .year-form-row{
+    grid-template-columns:1fr;
+  }
+}

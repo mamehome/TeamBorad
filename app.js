@@ -14,7 +14,8 @@ const defaultMasters = {
   ages: ["U-8","U-10","U-12","U-15","U-18","一般"],
   logoData: "teamboard-logo.png",
   surfaceType: "soccer",
-  players: []
+  players: [],
+  years: []
 };
 
 let sessions = loadLocal(DATA_KEY, []);
@@ -22,8 +23,9 @@ let matches = loadLocal(MATCH_KEY, []);
 let materials = loadLocal(MATERIAL_KEY, []);
 let masters = loadLocal(MASTER_KEY, defaultMasters);
 if(!Array.isArray(masters.players)) masters.players = [];
+  normalizeYears();
 let syncSetting = loadLocal(SYNC_KEY, {gasUrl:"", teamKey:""});
-let activeYear = loadLocal(YEAR_KEY, currentFiscalYear());
+let activeYear = loadLocal(YEAR_KEY, currentFiscalYear()) || currentFiscalYear();
 let draft = emptySession();
 let activePart = "wup";
 let activeTool = "attack";
@@ -43,43 +45,108 @@ function clone(o){return JSON.parse(JSON.stringify(o));}
 
 function currentFiscalYear(){
   const d = new Date();
-  const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
-  return String(y);
+  return String(d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1);
 }
 function yearLabel(y=activeYear){return `${y}年度`;}
-function fiscalYearOptions(){
-  const now = Number(currentFiscalYear());
-  const set = new Set([String(now-2), String(now-1), String(now), String(now+1), String(now+2), String(activeYear)]);
-  [...sessions, ...matches, ...materials].forEach(x=>{ if(x && x.fiscalYear) set.add(String(x.fiscalYear)); });
-  return [...set].sort((a,b)=>Number(b)-Number(a));
+function normalizeYears(){
+  if(!Array.isArray(masters.years)) masters.years = [];
+  const now = currentFiscalYear();
+  const set = new Set(masters.years.map(y=>String(y)).filter(Boolean));
+  set.add(now);
+  [sessions, matches, materials].forEach(list=>{
+    (list || []).forEach(item=>{ if(item && item.fiscalYear) set.add(String(item.fiscalYear)); });
+  });
+  masters.years = [...set].sort((a,b)=>Number(b)-Number(a));
+  if(!masters.years.includes(String(activeYear))) activeYear = now;
 }
-function ensureFiscalYears(){
+function ensureFiscalYearsOnce(){
+  normalizeYears();
   const fallback = String(activeYear || currentFiscalYear());
-  sessions.forEach(s=>{ if(!s.fiscalYear) s.fiscalYear = fallback; });
-  matches.forEach(m=>{ if(!m.fiscalYear) m.fiscalYear = fallback; });
-  materials.forEach(m=>{ if(!m.fiscalYear) m.fiscalYear = fallback; });
-  saveAll(); saveMatches(); if(typeof saveMaterials === "function") saveMaterials();
+  let changed = false;
+  sessions.forEach(s=>{ if(!s.fiscalYear){s.fiscalYear = fallback; changed = true;} });
+  matches.forEach(m=>{ if(!m.fiscalYear){m.fiscalYear = fallback; changed = true;} });
+  materials.forEach(m=>{ if(!m.fiscalYear){m.fiscalYear = fallback; changed = true;} });
+  if(changed){ saveAll(); saveMatches(); if(typeof saveMaterials === "function") saveMaterials(); }
+  saveMasters();
+  saveLocal(YEAR_KEY, activeYear);
 }
 function sameYear(x){return String(x.fiscalYear || activeYear) === String(activeYear);}
+function refreshYearSelector(){
+  normalizeYears();
+  const s = el("yearSelector");
+  if(s){
+    s.innerHTML = masters.years.map(y=>`<option value="${esc(y)}">${esc(yearLabel(y))}</option>`).join("");
+    s.value = String(activeYear);
+  }
+  const label = yearLabel(activeYear);
+  if(el("homeYearBadge")) el("homeYearBadge").textContent = label;
+  if(el("matchYearBadge")) el("matchYearBadge").textContent = label;
+  if(el("materialYearBadge")) el("materialYearBadge").textContent = label;
+  renderYearMasterList();
+}
 function setActiveYear(y){
   activeYear = String(y || currentFiscalYear());
+  normalizeYears();
+  if(!masters.years.includes(activeYear)) masters.years.unshift(activeYear);
+  saveMasters();
   saveLocal(YEAR_KEY, activeYear);
   refreshYearSelector();
   renderAll();
   toast(yearLabel(activeYear) + "に切り替えました");
 }
-function refreshYearSelector(){
-  const s = el("yearSelector");
-  if(!s) return;
-  const years = fiscalYearOptions();
-  s.innerHTML = years.map(y=>`<option value="${esc(y)}">${esc(yearLabel(y))}</option>`).join("");
-  s.value = String(activeYear);
-  const label = yearLabel(activeYear);
-  if(el("homeYearBadge")) el("homeYearBadge").textContent = label;
-  if(el("matchYearBadge")) el("matchYearBadge").textContent = label;
-  if(el("materialYearBadge")) el("materialYearBadge").textContent = label;
+function addYearMaster(){
+  const input = el("yearInput");
+  const y = String(input.value || "").replace(/[^\d]/g,"").slice(0,4);
+  if(!y || y.length < 4){
+    toast("年度は西暦4桁で入力してください");
+    return;
+  }
+  normalizeYears();
+  if(!masters.years.includes(y)) masters.years.push(y);
+  masters.years = [...new Set(masters.years)].sort((a,b)=>Number(b)-Number(a));
+  input.value = "";
+  saveMasters();
+  refreshYearSelector();
+  toast(yearLabel(y) + "を追加しました");
+}
+function deleteYearMaster(y){
+  y = String(y);
+  const used = [...sessions, ...matches, ...materials].some(item=>String(item.fiscalYear || "") === y);
+  if(used){
+    alert("この年度にはデータがあるため削除できません。");
+    return;
+  }
+  if(y === currentFiscalYear()){
+    alert("現在年度は削除できません。");
+    return;
+  }
+  masters.years = (masters.years || []).filter(x=>String(x)!==y);
+  if(String(activeYear) === y) activeYear = currentFiscalYear();
+  saveMasters();
+  saveLocal(YEAR_KEY, activeYear);
+  refreshYearSelector();
+  renderAll();
+}
+function renderYearMasterList(){
+  const list = el("yearMasterList");
+  if(!list) return;
+  normalizeYears();
+  list.innerHTML = masters.years.map(y=>`
+    <span class="year-master-item ${String(activeYear)===String(y) ? "active" : ""}">
+      ${esc(yearLabel(y))}
+      <button type="button" data-year-select="${esc(y)}">表示</button>
+      <button type="button" class="danger" data-year-delete="${esc(y)}">削除</button>
+    </span>
+  `).join("");
+  document.querySelectorAll("[data-year-select]").forEach(btn=>{
+    btn.onclick=()=>setActiveYear(btn.dataset.yearSelect);
+  });
+  document.querySelectorAll("[data-year-delete]").forEach(btn=>{
+    btn.onclick=()=>deleteYearMaster(btn.dataset.yearDelete);
+  });
 }
 function promptTargetYear(defaultYear = activeYear){
+  normalizeYears();
   const raw = prompt("コピー先の年度を入力してください（例：2027）", String(defaultYear));
   if(!raw) return "";
   const y = raw.replace(/[^\d]/g,"").slice(0,4);
@@ -87,8 +154,14 @@ function promptTargetYear(defaultYear = activeYear){
     toast("年度は西暦4桁で入力してください");
     return "";
   }
+  if(!masters.years.includes(y)){
+    masters.years.push(y);
+    masters.years = [...new Set(masters.years)].sort((a,b)=>Number(b)-Number(a));
+    saveMasters();
+  }
   return y;
 }
+
 function moveSessionToYear(id){
   const s = sessions.find(x=>x.id===id);
   if(!s) return;
@@ -129,6 +202,7 @@ function refreshMastersUI(){
   fillSelect("matchCategory", masters.ages);
   fillSelect("materialCategory", masters.ages);
   if(!Array.isArray(masters.players)) masters.players = [];
+  normalizeYears();
   el("masterTags").value = masters.tags.join("\n");
   el("masterTimes").value = masters.times.join("\n");
   el("masterCategories").value = masters.categories.join("\n");
@@ -179,8 +253,9 @@ function readMastersUI(){
   masters.logoData = (masters.logoData === undefined || masters.logoData === null) ? "teamboard-logo.png" : masters.logoData;
   masters.surfaceType = el("surfaceType").value || "soccer";
   if(!Array.isArray(masters.players)) masters.players = [];
+  normalizeYears();
   saveMasters();
-  ensureFiscalYears();
+  ensureFiscalYearsOnce();
   refreshMastersUI();
   refreshYearSelector();
   renderTags();
@@ -738,6 +813,7 @@ let tb23MemberSelectionState = {};
 
 function getPlayers(){
   if(!Array.isArray(masters.players)) masters.players = [];
+  normalizeYears();
   return masters.players;
 }
 function playerLabel(p){
@@ -1332,7 +1408,7 @@ function sample(){
   return s;
 }
 
-function renderAll(){ensureFiscalYears();refreshYearSelector();renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderMatches();renderMaterials();updateSyncStatus();}
+function renderAll(){refreshYearSelector();renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderMatches();renderMaterials();updateSyncStatus();}
 
 
 /* TeamBoard v23 member editor override */
@@ -1341,6 +1417,7 @@ let tb23SubstitutionState = [];
 
 function tb23Players(){
   if(!Array.isArray(masters.players)) masters.players = [];
+  normalizeYears();
   return masters.players;
 }
 function tb23PlayerLabel(p){ return `#${p.number} ${p.name}`; }
@@ -1559,6 +1636,7 @@ function applySelectedColor(){
 document.addEventListener("DOMContentLoaded",()=>{
   if(!sessions.length){sessions=[sample()];saveAll();}
   if(!Array.isArray(masters.players)) masters.players = [];
+  normalizeYears();
   if(!Array.isArray(materials)) materials = [];
 
   refreshMastersUI();
@@ -1570,7 +1648,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   el("goSearchBtn").onclick=()=>page("searchPage");
   el("homeSearchBtn").onclick=()=>page("searchPage");
   el("homeResultsBtn").onclick=()=>page("resultsPage");
-  if(el("homeMaterialsBtn")) el("homeMaterialsBtn").onclick=()=>page("materialsPage");
+  if(el("homeMaterialsBtn")) if(el("homeMaterialsBtn")) el("homeMaterialsBtn").onclick=()=>page("materialsPage");
 
   el("settingsOpenBtn").onclick=()=>page("settingsPage");
   el("syncOpenBtn").onclick=openSync;
@@ -1621,6 +1699,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
 
   el("saveMastersBtn").onclick=readMastersUI;
+  el("addYearBtn").onclick=addYearMaster;
+  el("yearInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addYearMaster(); });
   el("surfaceType").onchange=()=>{
     masters.surfaceType=el("surfaceType").value;
     saveMasters();

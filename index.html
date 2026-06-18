@@ -479,7 +479,20 @@
         <p>U-8、U-10、U-12など。</p>
         <textarea id="masterAges" rows="12"></textarea>
       
-      <section class="panel master-card player-master-card">
+      
+      <section class="panel master-card year-master-card">
+        <h3>年度マスター</h3>
+        <p>年度を作成すると、上部の年度切替で選択できます。初期は今の年度です。</p>
+        <div class="year-form-row">
+          <label>年度
+            <input id="yearInput" type="number" min="2000" max="2100" placeholder="例：2026">
+          </label>
+          <button id="addYearBtn" class="primary" type="button">年度追加</button>
+        </div>
+        <div id="yearMasterList" class="year-master-list"></div>
+      </section>
+
+<section class="panel master-card player-master-card">
         <h3>選手登録</h3>
         <p>背番号と名前を登録すると、試合結果のスタメン設定で使用できます。</p>
         <div class="player-form-row">
