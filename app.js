@@ -791,9 +791,71 @@ function getFormationSlots(value){
   });
   return slots;
 }
-function optionsHtml(selected){
+function optionsHtml(selected, usedIds=[]){
   const players = sortedPlayers();
-  return `<option value="">未選択</option>` + players.map(p => `<option value="${p.id}" ${selected===p.id ? "selected" : ""}>${esc(playerLabel(p))}</option>`).join("");
+  const used = new Set((usedIds || []).filter(Boolean));
+  return `<option value="">未選択</option>` + players.map(p => {
+    const isSelected = selected === p.id;
+    const disabled = used.has(p.id) && !isSelected ? "disabled" : "";
+    return `<option value="${p.id}" ${isSelected ? "selected" : ""} ${disabled}>${esc(playerLabel(p))}${disabled ? "（選択済み）" : ""}</option>`;
+  }).join("");
+}
+function usedIdsInObject(obj, exceptSlotId=""){
+  return Object.values(obj || {})
+    .filter(v => v && v.playerId && v.slotId !== exceptSlotId)
+    .map(v => v.playerId);
+}
+function officialUsedIdsExcept(kind="", key=""){
+  ensureLineupState();
+  const ids = [];
+  Object.values(lineupState.official || {}).forEach(v=>{
+    if(v && v.playerId && !(kind==="starter" && v.slotId===key)) ids.push(v.playerId);
+  });
+  (lineupState.officialSubs || []).forEach(v=>{
+    if(v && v.playerId && !(kind==="sub" && v.id===key)) ids.push(v.playerId);
+  });
+  return ids;
+}
+function hasDuplicateIds(ids){
+  const seen = new Set();
+  for(const id of ids.filter(Boolean)){
+    if(seen.has(id)) return id;
+    seen.add(id);
+  }
+  return "";
+}
+function validateLineupDuplicates(){
+  ensureLineupState();
+  if(currentMatchType()==="official"){
+    const starterIds = Object.values(lineupState.official || {}).map(v=>v && v.playerId).filter(Boolean);
+    const subIds = (lineupState.officialSubs || []).map(v=>v && v.playerId).filter(Boolean);
+    const dup = hasDuplicateIds([...starterIds, ...subIds]);
+    if(dup){
+      Object.keys(lineupState.official || {}).forEach(k=>{
+        if(lineupState.official[k].playerId === dup) lineupState.official[k].playerId = "";
+      });
+      lineupState.officialSubs = (lineupState.officialSubs || []).map(s => s.playerId === dup ? {...s, playerId:"", number:"", name:""} : s);
+      const p = playerById(dup);
+      toast(`${p ? playerLabel(p) : "同じ選手"} が重複しているため解除しました`);
+      return false;
+    }
+    return true;
+  }
+  for(const key of currentGroupKeys()){
+    const group = lineupState.trm[key] || {};
+    const ids = Object.values(group).map(v=>v && v.playerId).filter(Boolean);
+    const dup = hasDuplicateIds(ids);
+    if(dup){
+      Object.keys(group).forEach(k=>{
+        if(group[k].playerId === dup) group[k].playerId = "";
+      });
+      lineupState.trm[key] = group;
+      const p = playerById(dup);
+      toast(`${lineupGroupTitle(key)}で ${p ? playerLabel(p) : "同じ選手"} が重複しているため解除しました`);
+      return false;
+    }
+  }
+  return true;
 }
 function lineupEntryFromSelect(playerId, slot){
   const p = playerById(playerId);
@@ -868,15 +930,19 @@ function renderPlayerMasterList(){
 }
 function renderLineupGroup(groupKey, stateObj){
   const slots = getFormationSlots(el("formationInput").value);
+  const groupUsed = stateObj || {};
   return `<section class="member-group" data-member-group="${esc(groupKey)}">
     <div class="member-group-title">${esc(lineupGroupTitle(groupKey))}</div>
     <div class="member-grid">
       ${slots.map(slot=>{
         const selected = stateObj?.[slot.slotId]?.playerId || "";
+        const usedIds = currentMatchType()==="official"
+          ? officialUsedIdsExcept("starter", slot.slotId)
+          : usedIdsInObject(groupUsed, slot.slotId);
         return `<div class="starter-row member-row">
           <span class="slot-label">${esc(slot.label)}</span>
           <select data-lineup-group="${esc(groupKey)}" data-starter-slot="${esc(slot.slotId)}" data-slot-label="${esc(slot.label)}">
-            ${optionsHtml(selected)}
+            ${optionsHtml(selected, usedIds)}
           </select>
         </div>`;
       }).join("")}
@@ -895,7 +961,7 @@ function renderOfficialSubs(){
       ${rows.map((s,i)=>`
         <div class="sub-row" data-sub-row="${esc(s.id || uid())}">
           <label>選手
-            <select data-sub-player>${optionsHtml(s.playerId || "")}</select>
+            <select data-sub-player>${optionsHtml(s.playerId || "", officialUsedIdsExcept("sub", s.id || ""))}</select>
           </label>
           <label>時間
             <input data-sub-minute type="text" placeholder="例：58分" value="${esc(s.minute || "")}">
@@ -910,9 +976,20 @@ function renderOfficialSubs(){
   </section>`;
 }
 function bindLineupInputs(){
-  document.querySelectorAll("[data-starter-slot], [data-sub-player], [data-sub-minute], [data-sub-position]").forEach(elm=>{
-    elm.onchange = ()=>{ captureStarterStateFromDOM(); renderFormationPreview(); };
+  document.querySelectorAll("[data-starter-slot], [data-sub-player]").forEach(elm=>{
+    elm.onchange = ()=>{
+      captureStarterStateFromDOM();
+      const ok = validateLineupDuplicates();
+      if(!ok){
+        renderStarterAssignments();
+        return;
+      }
+      renderStarterAssignments();
+    };
+  });
+  document.querySelectorAll("[data-sub-minute], [data-sub-position]").forEach(elm=>{
     elm.oninput = ()=>{ captureStarterStateFromDOM(); renderFormationPreview(); };
+    elm.onchange = ()=>{ captureStarterStateFromDOM(); renderFormationPreview(); };
   });
   const addBtn = el("addSubRowBtn");
   if(addBtn){
@@ -974,16 +1051,11 @@ function buildFormationCoords(formationValue){
   });
   return coords;
 }
-function selectedMapForPreview(){
+function selectedEntriesForPreview(groupKey){
   ensureLineupState();
-  if(currentMatchType()==="trm"){
-    const key = "trm_1";
-    return lineupState.trm[key] || {};
-  }
-  return lineupState.official || {};
-}
-function getSelectedStarterObjects(){
-  const stateObj = selectedMapForPreview();
+  const stateObj = currentMatchType()==="trm"
+    ? (lineupState.trm[groupKey] || {})
+    : (lineupState.official || {});
   return buildFormationCoords(el("formationInput").value).map(pos=>{
     const entry = stateObj[pos.slotId] || {};
     return {
@@ -994,10 +1066,8 @@ function getSelectedStarterObjects(){
     };
   });
 }
-function renderFormationPreview(){
-  const box = el("formationPreview");
-  if(!box) return;
-  const coords = getSelectedStarterObjects();
+function formationPreviewSvg(groupKey){
+  const coords = selectedEntriesForPreview(groupKey);
   let stripes = "";
   for(let x=0;x<1000;x+=100){
     stripes += `<rect x="${x}" y="0" width="50" height="640" fill="rgba(255,255,255,.05)"/>`;
@@ -1009,9 +1079,7 @@ function renderFormationPreview(){
       <text x="0" y="48" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">${esc(p.name || "")}</text>
     </g>
   `).join("");
-  const previewTitle = currentMatchType()==="trm" ? "1本メンバーの配置プレビュー" : "スタメン配置プレビュー";
-  box.innerHTML = `
-    <div class="preview-title">${esc(previewTitle)}</div>
+  return `
     <svg viewBox="0 0 1000 640" aria-label="formation preview">
       <rect x="0" y="0" width="1000" height="640" fill="#11813e"/>
       ${stripes}
@@ -1025,6 +1093,27 @@ function renderFormationPreview(){
       <rect x="922" y="255" width="54" height="130" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
       ${playersSvg}
     </svg>
+  `;
+}
+function renderFormationPreview(){
+  const box = el("formationPreview");
+  if(!box) return;
+  if(currentMatchType()==="trm"){
+    const keys = currentGroupKeys();
+    box.innerHTML = `<div class="preview-title">本数ごとの配置プレビュー</div>
+      <div class="trm-preview-grid">
+        ${keys.map(key => `<section class="formation-preview-card">
+          <h5>${esc(lineupGroupTitle(key))}</h5>
+          ${formationPreviewSvg(key)}
+        </section>`).join("")}
+      </div>`;
+    return;
+  }
+  box.innerHTML = `
+    <div class="preview-title">スタメン配置プレビュー</div>
+    <div class="formation-preview-card official-preview-card">
+      ${formationPreviewSvg("official_start")}
+    </div>
   `;
 }
 function collectLineupFromState(){
@@ -1116,6 +1205,7 @@ function clearMatchForm(){
 }
 function readMatchForm(){
   captureStarterStateFromDOM();
+  validateLineupDuplicates();
   const scores = readDynamicScores();
   const totalOwn = scores.reduce((a,b)=>a+Number(b.own||0),0);
   const totalOpp = scores.reduce((a,b)=>a+Number(b.opp||0),0);
