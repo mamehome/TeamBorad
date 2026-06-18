@@ -274,23 +274,29 @@ function pitchBase(){
 
 function defaultScale(type){
   const map = {
-    attack:1,defense:1,free:1,cone:1,marker:1,circlePart:1,squarePart:1,hLine:1,vLine:1,
-    centerLine:1,centerCircle:1,courtArea:1,goalFrame:1,goal:1,penalty:1,ball:1,text:1,line:1,arrow:1,dash:1
+    attack:1,defense:1,free:1,gk:1,person:1,cone:1,marker:1,ladder:1,circlePart:1,squarePart:1,hLine:1,vLine:1,
+    centerLine:1,centerCircle:1,courtArea:1,goalFrame:1,goal:1,penalty:1,ball:1,text:1,line:1,arrow:1,dash:1,zigzag:1
   };
   return map[type] || 1;
 }
 function defaultColor(type){
   const map = {
-    attack:"#e53935", defense:"#1e88e5", free:"#fdd835", cone:"#ff7a00", marker:"#ffea00",
-    circlePart:"#ffffff", squarePart:"#ffffff", hLine:"#ffffff", vLine:"#ffffff",
+    attack:"#e53935", defense:"#1e88e5", free:"#fdd835", gk:"#8e99a5", cone:"#ff7a00", marker:"#ffea00", ladder:"#ffffff",
+    circlePart:"#ffffff", squarePart:"#ffffff", hLine:"#ffffff", vLine:"#ffffff", person:"#ffffff",
     centerLine:"#ffffff", centerCircle:"#ffffff", courtArea:"#ffffff", goalFrame:"#ffffff",
-    line:"#ffffff", arrow:"#ffffff", dash:"#ffffff", text:"#ffffff"
+    line:"#ffffff", arrow:"#ffffff", dash:"#ffffff", zigzag:"#ffffff", text:"#ffffff"
   };
   return map[type] || currentPartColor || "#ffffff";
 }
-function isLineType(type){ return ["line","arrow","dash"].includes(type); }
-function isColorableType(type){ return ["attack","defense","free","cone","marker","circlePart","squarePart","hLine","vLine","centerLine","centerCircle","courtArea","goalFrame","line","arrow","dash","text"].includes(type); }
-function objColor(o){ return o && o.color ? o.color : defaultColor(o ? o.type : activeTool); }
+function isLineType(type){ return ["line","arrow","dash","zigzag"].includes(type); }
+function isColorableType(type){ return ["attack","defense","free","gk","person","cone","marker","ladder","circlePart","squarePart","hLine","vLine","centerLine","centerCircle","courtArea","goalFrame","line","arrow","dash","zigzag","text"].includes(type); }
+function isFixedColorType(type){ return ["attack","defense","free","gk"].includes(type); }
+function canChangeColor(type){ return isColorableType(type) && !isFixedColorType(type); }
+function objColor(o){
+  const type = o ? o.type : activeTool;
+  if(isFixedColorType(type)) return defaultColor(type);
+  return o && o.color ? o.color : defaultColor(type);
+}
 function currentObjects(){ return draft.parts[activePart].objects; }
 let selectedObjectId = null;
 let interaction = null;
@@ -301,7 +307,8 @@ function ensureObjectDefaults(o){
   if(o.s == null) o.s = defaultScale(o.type);
   if(o.type === "goal") o.type = "goalFrame";
   if(o.type === "penalty") o.type = "courtArea";
-  if(isColorableType(o.type) && !o.color) o.color = defaultColor(o.type);
+  if(isFixedColorType(o.type)) o.color = defaultColor(o.type);
+  else if(isColorableType(o.type) && !o.color) o.color = defaultColor(o.type);
   return o;
 }
 function normalizeCurrentObjects(){ currentObjects().forEach(ensureObjectDefaults); }
@@ -315,7 +322,7 @@ function playerShape(x,y,color,label,text="#fff",s=1,r=0){
   const headR = 8*s;
   const sw = Math.max(2, 4*s);
   const fs = Math.max(12, 18*s);
-  const bib = color === "#fdd835" ? "#2b2b2b" : "#ffffff";
+  const bib = ["#fdd835","#8e99a5"].includes(color) ? "#2b2b2b" : "#ffffff";
   return `<g transform="rotate(${r} ${x} ${y})">
     <circle cx="${x}" cy="${y+4*s}" r="${bodyR}" fill="${color}" stroke="#15331f" stroke-width="${sw}"/>
     <circle cx="${x}" cy="${y-20*s}" r="${headR}" fill="#f8f8f8" stroke="#15331f" stroke-width="${Math.max(1.5,2.5*s)}"/>
@@ -331,6 +338,24 @@ function coneShape(x,y,s=1){
 function markerShape(x,y,s=1,color="#ffea00"){
   const r = 15*s, sw = Math.max(2,4*s);
   return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" stroke="#17351f" stroke-width="${sw}"/>`;
+}
+function ladderShape(x,y,s=1,color="#ffffff",r=0){
+  const w = 108*s, h = 34*s;
+  const railInset = 10*s;
+  const stroke = Math.max(3,5*s);
+  const rungStroke = Math.max(2,4*s);
+  const left = x - w/2, right = x + w/2, top = y - h/2, bottom = y + h/2;
+  let rungs = "";
+  const count = 5;
+  for(let i=1;i<=count;i++){
+    const rx = left + (w/(count+1))*i;
+    rungs += `<line x1="${rx}" y1="${top+railInset*0.45}" x2="${rx}" y2="${bottom-railInset*0.45}" stroke="${color}" stroke-width="${rungStroke}" stroke-linecap="round"/>`;
+  }
+  return `<g transform="rotate(${r} ${x} ${y})">
+    <line x1="${left}" y1="${top}" x2="${right}" y2="${top}" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"/>
+    <line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"/>
+    ${rungs}
+  </g>`;
 }
 function simpleCircleShape(x,y,s=1,color="#ffffff"){
   const r = 28*s, sw = Math.max(2,4*s);
@@ -496,8 +521,11 @@ function shapeSvg(o){
   if(o.type==="attack") return playerShape(o.x,o.y,c || "#e53935","A","#fff",s,o.r||0);
   if(o.type==="defense") return playerShape(o.x,o.y,c || "#1e88e5","D","#fff",s,o.r||0);
   if(o.type==="free") return playerShape(o.x,o.y,c || "#fdd835","F","#17211b",s,o.r||0);
+  if(o.type==="gk") return playerShape(o.x,o.y,c || "#8e99a5","GK","#17211b",s,o.r||0);
+  if(o.type==="person") return playerShape(o.x,o.y,c || "#ffffff","","#17211b",s,o.r||0);
   if(o.type==="cone") return coneShape(o.x,o.y,s);
   if(o.type==="marker") return markerShape(o.x,o.y,s,c);
+  if(o.type==="ladder") return ladderShape(o.x,o.y,s,c,o.r||0);
   if(o.type==="circlePart") return simpleCircleShape(o.x,o.y,s,c);
   if(o.type==="squarePart") return squarePartShape(o.x,o.y,s,c,o.r||0);
   if(o.type==="hLine") return hLineShape(o.x,o.y,o.r||0,s,c);
@@ -509,8 +537,9 @@ function shapeSvg(o){
   if(o.type==="ball") return ballShape(o.x,o.y,s);
   if(o.type==="text") return textShape(o.x,o.y,o.text||"テキスト",s);
   if(o.type==="line") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="${c}" stroke-width="${Math.max(4, 8*(o.s||1))}" stroke-linecap="round"/>`;
-  if(o.type==="arrow") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="${c}" stroke-width="${Math.max(4, 8*(o.s||1))}" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
-  if(o.type==="dash") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="${c}" stroke-width="${Math.max(4, 7*(o.s||1))}" stroke-dasharray="${18*(o.s||1)} ${16*(o.s||1)}" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
+  if(o.type==="arrow") return straightArrowSvg(o,false,false);
+  if(o.type==="dash") return straightArrowSvg(o,true,false);
+  if(o.type==="zigzag") return zigzagArrowSvg(o,false);
   return "";
 }
 function objectWrapper(o){ ensureObjectDefaults(o); return `<g class="board-object" data-obj-id="${o.id}" data-type="${o.type}">${shapeSvg(o)}</g>`; }
@@ -523,7 +552,7 @@ function objectBounds(o){
     return {x:Math.min(o.x1,o.x2)-18,y:Math.min(o.y1,o.y2)-18,w:Math.abs(o.x2-o.x1)+36,h:Math.abs(o.y2-o.y1)+36};
   }
   const boxes = {
-    attack:[56*s,56*s], defense:[56*s,56*s], free:[56*s,56*s], cone:[58*s,58*s], marker:[40*s,40*s],
+    attack:[56*s,56*s], defense:[56*s,56*s], free:[56*s,56*s], gk:[56*s,56*s], person:[56*s,56*s], cone:[58*s,58*s], marker:[40*s,40*s], ladder:[130*s,54*s],
     circlePart:[70*s,70*s], squarePart:[72*s,72*s], hLine:[140*s,32*s], vLine:[32*s,140*s],
     centerLine:[80*s,540*s], centerCircle:[170*s,170*s], goalFrame:[142*s,84*s], courtArea:[300*s,310*s],
     ball:[44*s,44*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
@@ -555,8 +584,9 @@ function previewDrawingSvg(){
   const sw = 7;
   const c = objColor(o);
   if(type==="line") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round"/>`;
-  if(type==="arrow") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
-  if(type==="dash") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="18 16" marker-end="url(#arrowHead)"/>`;
+  if(type==="arrow") return straightArrowSvg(o,false,true);
+  if(type==="dash") return straightArrowSvg(o,true,true);
+  if(type==="zigzag") return zigzagArrowSvg(o,true);
   return "";
 }
 function selectedLabel(o){
@@ -588,12 +618,12 @@ function setPart(k){saveNotes();activePart=k;interaction=null;selectedObjectId=n
 function toolLabelName(t){
   const isFutsal = (masters.surfaceType || "soccer") === "futsal";
   const names = {
-    attack:"攻撃", defense:"守備", free:"フリー", cone:"コーン", marker:"マーカー",
+    attack:"攻撃", defense:"守備", free:"フリーマン", gk:"GK", person:"人", cone:"コーン", marker:"マーカー", ladder:"ラダー",
     circlePart:"円", squarePart:"四角", hLine:"横線", vLine:"縦線",
     centerLine:"センターライン", centerCircle:"センターサークル",
     courtArea: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
     goalFrame:"ゴール", goal:"ゴール", penalty: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
-    ball:"ボール", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印"
+    ball:"ボール", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印", zigzag:"ジグザグ矢印"
   };
   return names[t] || t;
 }
@@ -615,11 +645,18 @@ function syncPartColorInput(){
   const input = el("partColor");
   if(!input) return;
   const o = getSelectedObject();
-  input.value = o && isColorableType(o.type) ? objColor(o) : currentPartColor;
+  const targetType = o ? o.type : activeTool;
+  input.disabled = !canChangeColor(targetType);
+  input.value = isColorableType(targetType) ? objColor(o || {type:targetType}) : currentPartColor;
 }
 function changePartColor(value){
-  currentPartColor = value || "#ffffff";
   const o = getSelectedObject();
+  const targetType = o ? o.type : activeTool;
+  if(!canChangeColor(targetType)){
+    syncPartColorInput();
+    return;
+  }
+  currentPartColor = value || "#ffffff";
   if(o && isColorableType(o.type)){
     o.color = currentPartColor;
     renderBoard();
@@ -655,7 +692,8 @@ function createObjectAt(p){
     if(!value) return null;
     obj = {id:uid(), type:"text", x:p.x, y:p.y, text:value, r:currentRotation, s:1, color:currentPartColor};
   }else{
-    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1, color:currentPartColor};
+    const color = isFixedColorType(activeTool) ? defaultColor(activeTool) : currentPartColor;
+    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1, color};
   }
   ensureObjectDefaults(obj);
   currentObjects().push(obj);
