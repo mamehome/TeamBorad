@@ -317,6 +317,27 @@ function getSelectedObject(){ return selectedObjectId ? getObjectById(selectedOb
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function rotNorm(v){ return ((v % 360) + 360) % 360; }
 
+function defaultLineEndPoint(start, type){
+  const baseLen = type === "zigzag" ? 190 : 165;
+  const x1 = start && start.x != null ? start.x : 120;
+  const y1 = start && start.y != null ? start.y : 320;
+  return {
+    x2: clamp(x1 + baseLen, 20, 980),
+    y2: clamp(y1, 20, 620)
+  };
+}
+function normalizeLineObject(o){
+  if(!o || !isLineType(o.type)) return o;
+  const dist = Math.hypot((o.x2 || o.x1) - o.x1, (o.y2 || o.y1) - o.y1);
+  if(dist < 12){
+    const end = defaultLineEndPoint({x:o.x1, y:o.y1}, o.type);
+    o.x2 = end.x2;
+    o.y2 = end.y2;
+  }
+  return o;
+}
+
+
 function playerShape(x,y,color,label,text="#fff",s=1,r=0){
   const bodyR = 22*s;
   const headR = 8*s;
@@ -744,7 +765,8 @@ function boardPointerDown(evt){
   }
   selectedObjectId = null;
   if(isLineType(activeTool)){
-    interaction = {mode:"drawLine", temp:{id:uid(), type:activeTool, x1:p.x, y1:p.y, x2:p.x, y2:p.y, s:1, color:currentPartColor}};
+    const end = defaultLineEndPoint(p, activeTool);
+    interaction = {mode:"drawLine", temp:{id:uid(), type:activeTool, x1:p.x, y1:p.y, x2:end.x2, y2:end.y2, s:1, color:currentPartColor}, moved:false};
     if(el("board").setPointerCapture) el("board").setPointerCapture(evt.pointerId);
     renderBoard();
     return;
@@ -759,6 +781,7 @@ function boardPointerMove(evt){
   if(!interaction) return;
   const p = boardPoint(evt);
   if(interaction.mode === "drawLine"){
+    interaction.moved = true;
     interaction.temp.x2 = p.x; interaction.temp.y2 = p.y;
     renderBoard();
     return;
@@ -794,18 +817,18 @@ function boardPointerMove(evt){
 function boardPointerUp(evt){
   if(!interaction) return;
   if(interaction.mode === "drawLine"){
-    const t = interaction.temp;
-    const len = Math.hypot(t.x2 - t.x1, t.y2 - t.y1);
-    if(len >= 10){
-      currentObjects().push(t);
-      selectedObjectId = t.id;
-    }else{
-      toast("ドラッグして描画してください");
-    }
+    const t = normalizeLineObject(interaction.temp);
+    ensureObjectDefaults(t);
+    currentObjects().push(t);
+    selectedObjectId = t.id;
+    interaction = null;
+    renderBoard();
+    return;
   }
   interaction = null;
   renderBoard();
 }
+
 function boardDoubleClick(evt){
   const objEl = evt.target.closest("[data-obj-id]");
   if(!objEl) return;
