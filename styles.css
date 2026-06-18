@@ -1601,3 +1601,13 @@ body[data-surface="futsal"] #board{
     font-size: 9px;
   }
 }
+
+
+/* TeamBoard v22 full fix */
+.bottom-nav{
+  grid-template-columns:repeat(6,1fr) !important;
+}
+#materialsPage .material-form-panel,
+#resultsPage .match-form-panel{
+  align-items:start;
+}

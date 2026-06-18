@@ -1229,44 +1229,86 @@ function sample(){
 }
 
 function renderAll(){renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderMatches();renderMaterials();updateSyncStatus();}
+
 document.addEventListener("DOMContentLoaded",()=>{
   if(!sessions.length){sessions=[sample()];saveAll();}
+  if(!Array.isArray(masters.players)) masters.players = [];
+  if(!Array.isArray(materials)) materials = [];
+
   refreshMastersUI();
+
   document.querySelectorAll(".nav-btn").forEach(b=>b.onclick=()=>page(b.dataset.page));
-  el("homeCreateBtn").onclick=newSession; el("goSearchBtn").onclick=()=>page("searchPage"); el("homeSearchBtn").onclick=()=>page("searchPage"); el("homeResultsBtn").onclick=()=>page("resultsPage"); el("homeMaterialsBtn").onclick=()=>page("materialsPage");
-  el("settingsOpenBtn").onclick=()=>page("settingsPage"); el("syncOpenBtn").onclick=openSync;
-  el("newBlankBtn").onclick=newSession; el("saveBtn").onclick=saveDraft;
+
+  el("homeCreateBtn").onclick=newSession;
+  el("goSearchBtn").onclick=()=>page("searchPage");
+  el("homeSearchBtn").onclick=()=>page("searchPage");
+  el("homeResultsBtn").onclick=()=>page("resultsPage");
+  if(el("homeMaterialsBtn")) el("homeMaterialsBtn").onclick=()=>page("materialsPage");
+
+  el("settingsOpenBtn").onclick=()=>page("settingsPage");
+  el("syncOpenBtn").onclick=openSync;
+
+  el("newBlankBtn").onclick=newSession;
+  el("saveBtn").onclick=saveDraft;
+
   el("board").addEventListener("pointerdown", boardPointerDown);
   el("board").addEventListener("pointermove", boardPointerMove);
   el("board").addEventListener("pointerup", boardPointerUp);
   el("board").addEventListener("pointercancel", boardPointerUp);
   el("board").addEventListener("dblclick", boardDoubleClick);
+
   el("undoBtn").onclick=()=>{
     if(selectedObjectId){ deleteSelectedObject(); return; }
     draft.parts[activePart].objects.pop();
     renderBoard();
   };
-  el("clearBtn").onclick=()=>{if(confirm("図をクリアしますか？")){draft.parts[activePart].objects=[];selectedObjectId=null;interaction=null;renderBoard();}};
+  el("clearBtn").onclick=()=>{
+    if(confirm("図をクリアしますか？")){
+      draft.parts[activePart].objects=[];
+      selectedObjectId=null;
+      interaction=null;
+      renderBoard();
+    }
+  };
   el("sizeDownBtn").onclick=()=>adjustSelectedSize(0.9);
   el("sizeUpBtn").onclick=()=>adjustSelectedSize(1.1);
   el("duplicateBtn").onclick=duplicateSelectedObject;
   el("deleteSelectedBtn").onclick=deleteSelectedObject;
   el("rotateLeftBtn").onclick=()=>rotateCurrent(-45);
   el("rotateRightBtn").onclick=()=>rotateCurrent(45);
+
   document.querySelectorAll(".part").forEach(b=>b.onclick=()=>setPart(b.dataset.part));
   document.querySelectorAll(".tool").forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
-  ["keyword","partFilter","categoryFilter","tagFilter"].forEach(id=>{el(id).oninput=renderSearch;el(id).onchange=renderSearch;});
-  el("clearSearchBtn").onclick=()=>{el("keyword").value="";el("partFilter").value="";el("categoryFilter").value="";el("tagFilter").value="";renderSearch();};
+
+  ["keyword","partFilter","categoryFilter","tagFilter"].forEach(id=>{
+    el(id).oninput=renderSearch;
+    el(id).onchange=renderSearch;
+  });
+  el("clearSearchBtn").onclick=()=>{
+    el("keyword").value="";
+    el("partFilter").value="";
+    el("categoryFilter").value="";
+    el("tagFilter").value="";
+    renderSearch();
+  };
+
   el("saveMastersBtn").onclick=readMastersUI;
-  el("surfaceType").onchange=()=>{masters.surfaceType=el("surfaceType").value;saveMasters();renderAll();renderBoard();toast("コート仕様を変更しました");};
+  el("surfaceType").onchange=()=>{
+    masters.surfaceType=el("surfaceType").value;
+    saveMasters();
+    renderAll();
+    renderBoard();
+    toast("コート仕様を変更しました");
+  };
+
+  // 選手登録
   el("addPlayerBtn").onclick=addPlayerMaster;
   el("playerNumberInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addPlayerMaster(); });
   el("playerNameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addPlayerMaster(); });
+
+  // 試合結果
   el("newMatchBtn").onclick=clearMatchForm;
   el("saveMatchBtn").onclick=saveMatch;
-  el("clearMaterialFormBtn").onclick=clearMaterialForm;
-  el("saveMaterialBtn").onclick=saveMaterial;
-  el("materialFileInput").onchange=(e)=>handleMaterialFile(e.target.files[0]);
   el("matchType").onchange=()=>{
     if(!el("matchName").value || el("matchName").value==="TRM" || el("matchName").value==="公式戦"){
       el("matchName").value = el("matchType").value==="trm" ? "TRM" : "公式戦";
@@ -1275,13 +1317,27 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
   el("trmCount").onchange=()=>renderScoreInputs();
   el("formationInput").oninput=()=>renderStarterAssignments();
-  clearMatchForm();
+
+  // 資料
+  el("clearMaterialFormBtn").onclick=clearMaterialForm;
+  el("saveMaterialBtn").onclick=saveMaterial;
+  el("materialFileInput").onchange=(e)=>handleMaterialFile(e.target.files[0]);
+
+  // ロゴ
   el("logoFileInput").onchange=(e)=>setLogoFromFile(e.target.files[0]);
   el("clearLogoBtn").onclick=clearLogo;
-  el("saveSyncSettingBtn").onclick=saveSyncSetting; el("pushBtn").onclick=pushDrive; el("pullBtn").onclick=pullDrive; el("downloadBtn").onclick=downloadJson;
+
+  // 同期
+  el("saveSyncSettingBtn").onclick=saveSyncSetting;
+  el("pushBtn").onclick=pushDrive;
+  el("pullBtn").onclick=pullDrive;
+  el("downloadBtn").onclick=downloadJson;
+
   setTool("attack");
   updateRotation();
   renderBoard();
   renderAll();
+  clearMatchForm();
+  clearMaterialForm();
   renderStarterAssignments();
 });
