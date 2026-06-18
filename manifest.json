@@ -1,0 +1,21 @@
+{
+  "name": "TeamBoard",
+  "short_name": "TeamBoard",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#04180c",
+  "theme_color": "#0b6f35",
+  "description": "チームロゴ対応。サッカー指導案を作成・保存・共有するTeamBoard",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
