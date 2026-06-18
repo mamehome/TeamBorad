@@ -1182,14 +1182,15 @@ function renderStarterAssignments(){
 }
 function buildFormationCoords(formationValue){
   const lines = parseFormation(formationValue);
-  const rows = [1, ...lines];
-  const totalRows = rows.length;
+  const totalRows = lines.length + 1;
   const coords = [{slotId:"GK1", label:"GK", x:120, y:320}];
   const roles = formationRoleNames(lines.length);
   lines.forEach((count, i)=>{
-    const x = totalRows === 1 ? 500 : 120 + ((i+1) * 760 / (totalRows-1));
+    const x = totalRows === 1 ? 500 : 150 + ((i+1) * 700 / (totalRows-1));
+    const maxSpread = Math.min(440, 115 * Math.max(1, count - 1));
+    const startY = 320 - maxSpread / 2;
     for(let k=0; k<count; k++){
-      const y = count === 1 ? 320 : 100 + (k * (440 / (count-1)));
+      const y = count === 1 ? 320 : startY + (k * (maxSpread / (count-1)));
       coords.push({slotId:`${roles[i]}${k+1}`, label:`${roles[i]}${k+1}`, x, y});
     }
   });
@@ -1520,6 +1521,24 @@ function goalEventsBlock(m){
     </div>
   </div>`;
 }
+
+function videoUrlIds(){ return [1,2,3,4,5,6].map(i=>`videoUrl${i}`); }
+function clearVideoInputs(){
+  videoUrlIds().forEach(id=>{ if(el(id)) el(id).value = ""; });
+}
+function readVideoUrls(){
+  const urls = videoUrlIds().map(id=>el(id)?.value.trim() || "");
+  return urls.filter(Boolean);
+}
+function setVideoInputs(m={}){
+  const urls = Array.isArray(m.videoUrls) ? m.videoUrls : (m.videoUrl ? [m.videoUrl] : []);
+  videoUrlIds().forEach((id,i)=>{ if(el(id)) el(id).value = urls[i] || ""; });
+}
+function videoButtonsBlock(m){
+  const urls = Array.isArray(m.videoUrls) && m.videoUrls.length ? m.videoUrls : (m.videoUrl ? [m.videoUrl] : []);
+  const buttons = urls.slice(0,6).map((url,i)=> url ? `<a class="video-link video-chip" href="${esc(url)}" target="_blank" rel="noopener noreferrer">動画${"①②③④⑤⑥"[i] || (i+1)}</a>` : "").join("");
+  return buttons ? `<div class="video-buttons">${buttons}</div>` : "";
+}
 function clearMatchForm(){
   el("matchId").value = "";
   el("matchType").value = "official";
@@ -1527,7 +1546,7 @@ function clearMatchForm(){
   el("matchCategory").value = masters.ages[0] || "U-12";
   el("opponentName").value = "";
   el("matchDate").value = todayISO();
-  el("videoUrl").value = "";
+  clearVideoInputs();
   el("trmCount").value = "3";
   el("formationInput").value = "4-4-2";
   el("matchMemo").value = "";
@@ -1546,6 +1565,7 @@ function readMatchForm(){
   const lineup = collectLineupFromState();
   const starters = collectStartersFromState();
   const goalEvents = readGoalEvents();
+  const videoUrls = readVideoUrls();
   return {
     id: el("matchId").value || uid(),
     year: activeYear,
@@ -1567,7 +1587,8 @@ function readMatchForm(){
     starters,
     subs: lineup.officialSubs || [],
     goalEvents,
-    videoUrl: el("videoUrl").value.trim(),
+    videoUrls,
+    videoUrl: videoUrls[0] || "",
     memo: el("matchMemo").value.trim(),
     updatedAt: new Date().toISOString()
   };
@@ -1594,7 +1615,7 @@ function editMatch(id){
   el("matchCategory").value = m.category || masters.ages[0] || "";
   el("opponentName").value = m.opponent || "";
   el("matchDate").value = m.date || todayISO();
-  el("videoUrl").value = m.videoUrl || "";
+  setVideoInputs(m);
   el("trmCount").value = String(m.trmCount || 3);
   el("formationInput").value = m.formation || "4-4-2";
   el("matchMemo").value = m.memo || "";
@@ -1723,7 +1744,7 @@ function renderMatches(){
       </div>
       ${goalEventsBlock(m)}
       ${matchLineupBlock(m)}
-      ${m.videoUrl ? `<a class="video-link" href="${esc(m.videoUrl)}" target="_blank" rel="noopener noreferrer">動画を開く</a>` : ""}
+      ${videoButtonsBlock(m)}
       ${m.memo ? `<div class="match-memo">${esc(m.memo)}</div>` : ""}
       <div class="card-actions">
         <button data-match-act="edit">編集</button>
