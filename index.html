@@ -162,43 +162,48 @@
 
       <aside class="panel tools-panel">
         <h3>配置パーツ</h3>
-        <div class="tools">
-          <button class="tool active" data-tool="attack"><span class="player-tool-icon player-attack-icon"></span><span>攻撃</span></button>
-          <button class="tool" data-tool="defense"><span class="player-tool-icon player-defense-icon"></span><span>守備</span></button>
-          <button class="tool" data-tool="free"><span class="player-tool-icon player-free-icon"></span><span>フリーマン</span></button>
-          <button class="tool" data-tool="cone"><span class="cone"></span>コーン</button>
-          <button class="tool" data-tool="marker"><span class="marker"></span>マーカー</button>
 
-          <button class="tool" data-tool="centerLine"><span class="mini-line"></span><span id="toolLabelCenterLine">センターライン</span></button>
-          <button class="tool" data-tool="centerCircle"><span class="mini-center-circle"></span><span id="toolLabelCenterCircle">センターサークル</span></button>
-          <button class="tool" data-tool="shapeCircle"><span class="shape-circle-icon"></span><span>円</span></button>
-          <button class="tool" data-tool="horizontalLine"><span class="horizontal-line-icon"></span><span>横線</span></button>
-          <button class="tool" data-tool="verticalLine"><span class="vertical-line-icon"></span><span>縦線</span></button>
-          <button class="tool" data-tool="courtArea"><span class="penalty-icon"></span><span id="toolLabelCourtArea">ペナルティエリア</span></button>
-          <button class="tool" data-tool="goalFrame"><span class="goal-icon"></span><span id="toolLabelGoalFrame">ゴール枠</span></button>
-
-          <button class="tool" data-tool="ball"><span class="ball-icon"></span><span>ボール</span></button>
-          <button class="tool" data-tool="text">T テキスト</button>
-          <button class="tool" data-tool="line"><span class="line-icon"></span><span>白線</span></button>
-          <button class="tool" data-tool="arrow"><span class="arrow-icon"></span><span>矢印</span></button>
-          <button class="tool" data-tool="dash"><span class="dash-arrow-icon"></span><span>点線矢印</span></button>
-        </div>
-
-        <div class="hint">
-          <p>選手・用具：空いている場所をタップすると配置 / 置いた後はドラッグ移動</p>
-          <p>白線・矢印・点線矢印：ドラッグして描画 / 端点をドラッグして調整</p>
-          <p>選択中パーツ：サイズ変更・複製・削除・回転が可能</p>
-        </div>
-
-        <div class="rotation-box">
-          <p>パーツの向き <span id="rotationValue">0°</span></p>
-          <div class="rotation-actions">
-            <button id="rotateLeftBtn" type="button">↺ 左回転</button>
-            <button id="rotateRightBtn" type="button">↻ 右回転</button>
+        <div class="tools-section">
+          <p class="tool-section-title">選手・ボール</p>
+          <div class="tools">
+            <button class="tool active" data-tool="attack"><span class="tb-icon tb-player tb-attack"></span><span>攻撃</span></button>
+            <button class="tool" data-tool="defense"><span class="tb-icon tb-player tb-defense"></span><span>守備</span></button>
+            <button class="tool" data-tool="free"><span class="tb-icon tb-player tb-free"></span><span>フリーマン</span></button>
+            <button class="tool" data-tool="ball"><span class="tb-icon tb-ball"></span><span>ボール</span></button>
           </div>
         </div>
 
-        
+        <div class="tools-section">
+          <p class="tool-section-title">マーカー・コーン</p>
+          <div class="tools">
+            <button class="tool" data-tool="cone"><span class="tb-icon tb-cone"></span><span>コーン</span></button>
+            <button class="tool" data-tool="marker"><span class="tb-icon tb-marker"></span><span>マーカー</span></button>
+          </div>
+        </div>
+
+        <div class="tools-section">
+          <p class="tool-section-title">フィールド・ライン</p>
+          <div class="tools">
+            <button class="tool" data-tool="goalFrame"><span class="tb-icon tb-goal"></span><span>ゴール枠</span></button>
+            <button class="tool" data-tool="courtArea"><span class="tb-icon tb-penalty"></span><span id="toolLabelCourtArea">ペナルティエリア</span></button>
+            <button class="tool" data-tool="centerLine"><span class="tb-icon tb-center-line"></span><span id="toolLabelCenterLine">センターライン</span></button>
+            <button class="tool" data-tool="centerCircle"><span class="tb-icon tb-center-circle"></span><span id="toolLabelCenterCircle">センターサークル</span></button>
+            <button class="tool" data-tool="shapeCircle"><span class="tb-icon tb-shape-circle"></span><span>円</span></button>
+            <button class="tool" data-tool="horizontalLine"><span class="tb-icon tb-horizontal"></span><span>横線</span></button>
+            <button class="tool" data-tool="verticalLine"><span class="tb-icon tb-vertical"></span><span>縦線</span></button>
+          </div>
+        </div>
+
+        <div class="tools-section">
+          <p class="tool-section-title">その他</p>
+          <div class="tools">
+            <button class="tool" data-tool="text"><span class="tb-icon tb-text">T</span><span>テキスト</span></button>
+            <button class="tool" data-tool="line"><span class="tb-icon tb-line"></span><span>白線</span></button>
+            <button class="tool" data-tool="arrow"><span class="tb-icon tb-arrow"></span><span>矢印</span></button>
+            <button class="tool" data-tool="dash"><span class="tb-icon tb-dash"></span><span>点線矢印</span></button>
+          </div>
+        </div>
+
         <div class="color-box">
           <p>パーツ色</p>
           <div class="color-row">
@@ -207,9 +212,24 @@
           </div>
         </div>
 
+        <div class="hint">
+          <p>選手・用具：空いている場所をタップすると配置 / 置いた後はドラッグ移動</p>
+          <p>白線・矢印・点線矢印：ドラッグして描画 / 端点をドラッグして調整</p>
+          <p>円・横線・縦線：配置後にサイズ変更・色変更が可能</p>
+        </div>
+
+        <div class="rotation-box">
+          <p>向き</p>
+          <div>
+            <button id="rotateLeftBtn" type="button">↺ 左回転</button>
+            <span id="rotationValue">0°</span>
+            <button id="rotateRightBtn" type="button">右回転 ↻</button>
+          </div>
+        </div>
+
         <div class="tool-actions">
           <button id="undoBtn">一つ戻す</button>
-          <button id="clearBtn" class="danger">図をクリア</button>
+          <button id="clearBtn" class="danger">この図をクリア</button>
         </div>
       </aside>
 

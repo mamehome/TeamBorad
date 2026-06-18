@@ -229,17 +229,12 @@ function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function rotNorm(v){ return ((v % 360) + 360) % 360; }
 
 function playerShape(x,y,color,label,text="#fff",s=1){
-  const r = 26*s;
-  const sw = Math.max(2,4*s);
+  const r = 26*s, sw = Math.max(2,4*s);
   const arrowY = y - 39*s;
   return `<g>
     <circle cx="${x}" cy="${y}" r="${r}" fill="${color}" stroke="#fff" stroke-width="${sw}"/>
     <circle cx="${x}" cy="${y-4*s}" r="${9*s}" fill="#fff"/>
-    <path d="M ${x-14*s} ${y+11*s}
-             Q ${x} ${y+31*s} ${x+14*s} ${y+11*s}
-             Q ${x+17*s} ${y+2*s} ${x+9*s} ${y+2*s}
-             Q ${x} ${y+11*s} ${x-9*s} ${y+2*s}
-             Q ${x-17*s} ${y+2*s} ${x-14*s} ${y+11*s} Z" fill="#fff"/>
+    <path d="M ${x-14*s} ${y+11*s} Q ${x} ${y+31*s} ${x+14*s} ${y+11*s} Q ${x+17*s} ${y+2*s} ${x+9*s} ${y+2*s} Q ${x} ${y+11*s} ${x-9*s} ${y+2*s} Q ${x-17*s} ${y+2*s} ${x-14*s} ${y+11*s} Z" fill="#fff"/>
     <rect x="${x-34*s}" y="${y+8*s}" width="${23*s}" height="${9*s}" rx="${4.5*s}" fill="#fff" transform="rotate(-32 ${x-22*s} ${y+12*s})"/>
     <rect x="${x+11*s}" y="${y+8*s}" width="${23*s}" height="${9*s}" rx="${4.5*s}" fill="#fff" transform="rotate(32 ${x+22*s} ${y+12*s})"/>
     <path d="M ${x} ${arrowY} L ${x-8*s} ${arrowY+12*s} Q ${x} ${arrowY+8*s} ${x+8*s} ${arrowY+12*s} Z" fill="#fff"/>
@@ -276,23 +271,22 @@ function goalFrameShape(x,y,r=0,s=1){
   </g>`;
 }
 function soccerPenaltyShape(x,y,r=0,s=1){
-  const col = arguments.length > 4 ? arguments[4] : "#fff";
-  const swMain = Math.max(3,8*s), swSub = Math.max(2,6*s);
-  const goalLineY = y - 128*s;
-  const boxW = 270*s;
-  const boxH = 184*s;
-  const boxX = x - boxW/2;
-  const smallW = 118*s;
-  const smallH = 60*s;
-  const smallX = x - smallW/2;
-  const spotY = goalLineY + 105*s;
+  const swMain = Math.max(3,7*s), swSub = Math.max(2,5*s);
+  const goalLineX = x - 110*s;
+  const boxDepth = 182*s;
+  const boxHalfH = 132*s;
+  const goalAreaDepth = 62*s;
+  const goalAreaHalfH = 64*s;
+  const spotX = goalLineX + 80*s;
+  const arcR = 64*s;
   return `<g transform="rotate(${r} ${x} ${y})">
-    <rect x="${boxX}" y="${goalLineY}" width="${boxW}" height="${boxH}" rx="${4*s}" fill="none" stroke="${col}" stroke-width="${swMain}" stroke-linejoin="round"/>
-    <path d="M ${smallX} ${goalLineY} L ${smallX} ${goalLineY+smallH} L ${smallX+smallW} ${goalLineY+smallH} L ${smallX+smallW} ${goalLineY}"
-          fill="none" stroke="${col}" stroke-width="${swSub}" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${x}" cy="${spotY}" r="${Math.max(4,6*s)}" fill="${col}"/>
-    <path d="M ${x-62*s} ${goalLineY+boxH} A ${74*s} ${74*s} 0 0 0 ${x+62*s} ${goalLineY+boxH}"
-          fill="none" stroke="${col}" stroke-width="${swSub}" stroke-linecap="round"/>
+    <line x1="${goalLineX}" y1="${y-boxHalfH}" x2="${goalLineX}" y2="${y+boxHalfH}" stroke="#fff" stroke-width="${swMain}" stroke-linecap="round"/>
+    <path d="M ${goalLineX} ${y-boxHalfH} L ${goalLineX+boxDepth} ${y-boxHalfH} L ${goalLineX+boxDepth} ${y+boxHalfH} L ${goalLineX} ${y+boxHalfH}" fill="none" stroke="#fff" stroke-width="${swMain}" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M ${goalLineX} ${y-goalAreaHalfH} L ${goalLineX+goalAreaDepth} ${y-goalAreaHalfH} L ${goalLineX+goalAreaDepth} ${y+goalAreaHalfH} L ${goalLineX} ${y+goalAreaHalfH}" fill="none" stroke="#fff" stroke-width="${swSub}" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${spotX}" cy="${y}" r="${Math.max(4,5*s)}" fill="#fff"/>
+    <path d="M ${spotX+arcR*Math.cos(-0.92)} ${y+arcR*Math.sin(-0.92)}
+             A ${arcR} ${arcR} 0 0 1 ${spotX+arcR*Math.cos(0.92)} ${y+arcR*Math.sin(0.92)}"
+          fill="none" stroke="#fff" stroke-width="${swSub}" stroke-linecap="round"/>
   </g>`;
 }
 function futsalGoalAreaShape(x,y,r=0,s=1){
@@ -309,9 +303,9 @@ function futsalGoalAreaShape(x,y,r=0,s=1){
     <circle cx="${goalLineX+60*s}" cy="${y}" r="${Math.max(3,4*s)}" fill="#fff"/>
   </g>`;
 }
-function courtAreaShape(x,y,r=0,s=1,col="#fff"){
+function courtAreaShape(x,y,r=0,s=1){
   const type = masters.surfaceType || "soccer";
-  return type === "futsal" ? futsalGoalAreaShape(x,y,r,s) : soccerPenaltyShape(x,y,r,s,col);
+  return type === "futsal" ? futsalGoalAreaShape(x,y,r,s) : soccerPenaltyShape(x,y,r,s);
 }
 function ballShape(x,y,s=1){
   const r = 17*s, sw = Math.max(2,3*s);
@@ -349,7 +343,6 @@ function verticalLineShape(x,y,r=0,s=1,col="#fff"){
   const len=150*s;
   return `<g transform="rotate(${r} ${x} ${y})"><line x1="${x}" y1="${y-len/2}" x2="${x}" y2="${y+len/2}" stroke="${col}" stroke-width="${Math.max(4,9*s)}" stroke-linecap="round"/></g>`;
 }
-
 function shapeSvg(o){
   ensureObjectDefaults(o);
   const s = o.s || 1;
@@ -360,9 +353,8 @@ function shapeSvg(o){
   if(o.type==="marker") return markerShape(o.x,o.y,s);
   if(o.type==="centerLine") return centerLineShape(o.x,o.y,o.r||0,s);
   if(o.type==="centerCircle") return centerCircleShape(o.x,o.y,o.r||0,s);
-  if(o.type==="courtArea") return courtAreaShape(o.x,o.y,o.r||0,s,o.color||"#fff");
+  if(o.type==="courtArea") return courtAreaShape(o.x,o.y,o.r||0,s);
   if(o.type==="goalFrame") return goalFrameShape(o.x,o.y,o.r||0,s);
-  
   if(o.type==="shapeCircle") return shapeCircleShape(o.x,o.y,s,o.color||"#fff");
   if(o.type==="horizontalLine") return horizontalLineShape(o.x,o.y,o.r||0,s,o.color||"#fff");
   if(o.type==="verticalLine") return verticalLineShape(o.x,o.y,o.r||0,s,o.color||"#fff");
@@ -464,8 +456,8 @@ function renderToolPalette(){
 function setTool(t){
   activeTool=t; interaction=null;
   if(el("partColor")){
-    const defaults={attack:"#e62922",defense:"#1669df",free:"#219529",cone:"#ff7a00",marker:"#ffcc00",line:"#ffffff",arrow:"#ffffff",dash:"#ffffff",courtArea:"#ffffff",goalFrame:"#ffffff",centerLine:"#ffffff",centerCircle:"#ffffff",shapeCircle:"#ffffff",horizontalLine:"#ffffff",verticalLine:"#ffffff",text:"#ffffff",ball:"#ffffff"};
-    el("partColor").value = defaults[t] || "#ffffff";
+    const colorDefaults={attack:"#e62922",defense:"#1669df",free:"#219529",cone:"#ff7a00",marker:"#ffcc00",line:"#ffffff",arrow:"#ffffff",dash:"#ffffff",courtArea:"#ffffff",goalFrame:"#ffffff",centerLine:"#ffffff",centerCircle:"#ffffff",shapeCircle:"#ffffff",horizontalLine:"#ffffff",verticalLine:"#ffffff",text:"#ffffff",ball:"#ffffff"};
+    el("partColor").value=colorDefaults[t]||"#ffffff";
   }
   document.querySelectorAll(".tool").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));
   el("toolName").textContent=toolLabelName(t);
@@ -1564,7 +1556,6 @@ function applySelectedColor(){
   renderBoard();
   toast("色を変更しました");
 }
-
 document.addEventListener("DOMContentLoaded",()=>{
   if(!sessions.length){sessions=[sample()];saveAll();}
   if(!Array.isArray(masters.players)) masters.players = [];
