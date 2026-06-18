@@ -258,19 +258,6 @@ function textShape(x,y,text,s=1){
     <text x="${x}" y="${y + fs*0.18}" text-anchor="middle" font-size="${fs}" font-weight="900" fill="#fff">${safe}</text>
   </g>`;
 }
-
-function shapeCircleShape(x,y,s=1,col="#fff"){
-  return `<circle cx="${x}" cy="${y}" r="${52*s}" fill="none" stroke="${col}" stroke-width="${Math.max(4,8*s)}"/>`;
-}
-function horizontalLineShape(x,y,r=0,s=1,col="#fff"){
-  const len=150*s;
-  return `<g transform="rotate(${r} ${x} ${y})"><line x1="${x-len/2}" y1="${y}" x2="${x+len/2}" y2="${y}" stroke="${col}" stroke-width="${Math.max(4,9*s)}" stroke-linecap="round"/></g>`;
-}
-function verticalLineShape(x,y,r=0,s=1,col="#fff"){
-  const len=150*s;
-  return `<g transform="rotate(${r} ${x} ${y})"><line x1="${x}" y1="${y-len/2}" x2="${x}" y2="${y+len/2}" stroke="${col}" stroke-width="${Math.max(4,9*s)}" stroke-linecap="round"/></g>`;
-}
-
 function shapeSvg(o){
   ensureObjectDefaults(o);
   const s = o.s || 1;
@@ -283,9 +270,6 @@ function shapeSvg(o){
   if(o.type==="centerCircle") return centerCircleShape(o.x,o.y,o.r||0,s);
   if(o.type==="courtArea") return courtAreaShape(o.x,o.y,o.r||0,s);
   if(o.type==="goalFrame") return goalFrameShape(o.x,o.y,o.r||0,s);
-  if(o.type==="shapeCircle") return shapeCircleShape(o.x,o.y,s,o.color||"#fff");
-  if(o.type==="horizontalLine") return horizontalLineShape(o.x,o.y,o.r||0,s,o.color||"#fff");
-  if(o.type==="verticalLine") return verticalLineShape(o.x,o.y,o.r||0,s,o.color||"#fff");
   if(o.type==="ball") return ballShape(o.x,o.y,s);
   if(o.type==="text") return textShape(o.x,o.y,o.text||"テキスト",s);
   if(o.type==="line") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="#fff" stroke-width="${Math.max(4, 8*(o.s||1))}" stroke-linecap="round"/>`;
@@ -304,7 +288,7 @@ function objectBounds(o){
   }
   const boxes = {
     attack:[56,56], defense:[56,56], free:[56,56], cone:[58,58], marker:[40,40], ball:[34,34],
-    centerLine:[80,540*s], centerCircle:[170*s,170*s], goalFrame:[142*s,84*s], courtArea:[300*s,310*s], shapeCircle:[120*s,120*s], horizontalLine:[170*s,40*s], verticalLine:[40*s,170*s], ball:[44*s,44*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
+    centerLine:[80,540*s], centerCircle:[170*s,170*s], goalFrame:[142*s,84*s], courtArea:[300*s,310*s], ball:[44*s,44*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
   };
   const wh = boxes[o.type] || [70*s,70*s];
   return {x:o.x - wh[0]/2, y:o.y - wh[1]/2, w:wh[0], h:wh[1]};
@@ -368,7 +352,7 @@ function toolLabelName(t){
     centerLine:"センターライン", centerCircle:"センターサークル",
     courtArea: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
     goalFrame:"ゴール枠", goal:"ゴール枠", penalty: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
-    ball:"ボール", shapeCircle:"円", horizontalLine:"横線", verticalLine:"縦線", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印"
+    ball:"ボール", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印"
   };
   return names[t] || t;
 }
@@ -382,10 +366,6 @@ function renderToolPalette(){
 }
 function setTool(t){
   activeTool=t; interaction=null;
-  if(el("partColor")){
-    const colorDefaults={attack:"#e62922",defense:"#1669df",free:"#219529",cone:"#ff7a00",marker:"#ffcc00",line:"#ffffff",arrow:"#ffffff",dash:"#ffffff",courtArea:"#ffffff",goalFrame:"#ffffff",centerLine:"#ffffff",centerCircle:"#ffffff",shapeCircle:"#ffffff",horizontalLine:"#ffffff",verticalLine:"#ffffff",text:"#ffffff",ball:"#ffffff"};
-    el("partColor").value=colorDefaults[t]||"#ffffff";
-  }
   document.querySelectorAll(".tool").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));
   el("toolName").textContent=toolLabelName(t);
 }
@@ -415,9 +395,9 @@ function createObjectAt(p){
   if(activeTool==="text"){
     const value = prompt("挿入するテキストを入力してください", "ポイント");
     if(!value) return null;
-    obj = {id:uid(), type:"text", x:p.x, y:p.y, text:value, r:currentRotation, s:1, color:el("partColor")?el("partColor").value:"#ffffff"};
+    obj = {id:uid(), type:"text", x:p.x, y:p.y, text:value, r:currentRotation, s:1};
   }else{
-    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1, color:el("partColor")?el("partColor").value:"#ffffff"};
+    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1};
   }
   ensureObjectDefaults(obj);
   currentObjects().push(obj);
@@ -660,8 +640,7 @@ function num(id){
   return Math.max(0, Number(el(id).value || 0));
 }
 
-var tb23MemberSelectionState = {};
-  tb23SubstitutionState = [];
+let starterSelectionState = {};
 
 function getPlayers(){
   if(!Array.isArray(masters.players)) masters.players = [];
@@ -699,7 +678,7 @@ function addPlayerMaster(){
   masters.players.push({id:uid(), number, name});
   saveMasters();
   renderPlayerMasterList();
-  tb23RenderMemberEditor();
+  renderStarterAssignments();
   el("playerNumberInput").value = "";
   el("playerNameInput").value = "";
   toast("選手を登録しました");
@@ -746,8 +725,7 @@ function captureStarterStateFromDOM(){
   starterSelectionState = obj;
 }
 function setStarterStateFromSaved(starters){
-  tb23MemberSelectionState = {};
-  tb23SubstitutionState = [];
+  starterSelectionState = {};
   (starters || []).forEach(s=>{
     if(s && s.slotId) starterSelectionState[s.slotId] = s.playerId || "";
   });
@@ -915,8 +893,7 @@ function clearMatchForm(){
   el("trmCount").value = "3";
   el("formationInput").value = "4-4-2";
   el("matchMemo").value = "";
-  tb23MemberSelectionState = {};
-  tb23SubstitutionState = [];
+  starterSelectionState = {};
   renderScoreInputs({scores:[{label:"前半",own:0,opp:0},{label:"後半",own:0,opp:0}]});
   renderStarterAssignments();
 }
@@ -954,9 +931,7 @@ function readMatchForm(){
     totalOwn,
     totalOpp,
     formation: el("formationInput").value.trim() || "4-4-2",
-    memberSets: tb23CollectMemberSets(),
-    starters: tb23StartersForSet("starter"),
-    substitutions: clone(tb23SubstitutionState),
+    starters: collectStartersFromState(),
     videoUrl: el("videoUrl").value.trim(),
     memo: el("matchMemo").value.trim(),
     updatedAt: new Date().toISOString()
@@ -987,7 +962,7 @@ function editMatch(id){
   el("trmCount").value = String(m.trmCount || 3);
   el("formationInput").value = m.formation || "4-4-2";
   el("matchMemo").value = m.memo || "";
-  tb23SetStateFromSaved(m.starters || [], m.memberSets || null, m.substitutions || []);
+  setStarterStateFromSaved(m.starters || []);
   const scores = m.scores?.length ? m.scores : [
     {label:"前半", own:m.firstOwn ?? 0, opp:m.firstOpp ?? 0},
     {label:"後半", own:m.secondOwn ?? 0, opp:m.secondOpp ?? 0}
@@ -1069,8 +1044,8 @@ function renderMatches(){
       </div>
       ${(m.formation || "").trim() ? `<div class="match-lineup">
         <div><span class="lineup-formation-badge">${esc(m.formation)}</span></div>
-        ${tb23MiniFormation(m)}
-        ${starterChips(m)}${tb23SubChips(m)}
+        ${miniFormationSVG(m)}
+        ${starterChips(m)}
       </div>` : ""}
       ${m.videoUrl ? `<a class="video-link" href="${esc(m.videoUrl)}" target="_blank" rel="noopener noreferrer">動画を開く</a>` : ""}
       ${m.memo ? `<div class="match-memo">${esc(m.memo)}</div>` : ""}
@@ -1255,228 +1230,6 @@ function sample(){
 
 function renderAll(){renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderMatches();renderMaterials();updateSyncStatus();}
 
-
-/* TeamBoard v23 member editor override */
-var tb23MemberSelectionState = {};
-var tb23SubstitutionState = [];
-
-function tb23Players(){
-  if(!Array.isArray(masters.players)) masters.players = [];
-  return masters.players;
-}
-function tb23PlayerLabel(p){ return `#${p.number} ${p.name}`; }
-function tb23ParseFormation(v){
-  const nums = String(v || "").split(/[‐‑‒–—―ー－-]+/).map(x=>Number(x.trim())).filter(n=>Number.isFinite(n) && n > 0);
-  return nums.length ? nums : [4,4,2];
-}
-function tb23RoleNames(count){
-  if(count === 2) return ["DF","FW"];
-  if(count === 3) return ["DF","MF","FW"];
-  if(count === 4) return ["DF","MF","AM","FW"];
-  if(count === 5) return ["DF","DM","CM","AM","FW"];
-  return Array.from({length:count},(_,i)=>`L${i+1}`);
-}
-function tb23Slots(){
-  const lines = tb23ParseFormation(el("formationInput").value);
-  const roles = tb23RoleNames(lines.length);
-  const slots = [{slotId:"GK1", label:"GK"}];
-  lines.forEach((count, lineIdx)=>{
-    const role = roles[lineIdx] || `L${lineIdx+1}`;
-    for(let i=1;i<=count;i++) slots.push({slotId:`${role}${i}`, label:`${role}${i}`});
-  });
-  return slots;
-}
-function tb23SetDefs(){
-  if(el("matchType").value === "trm"){
-    const n = Math.max(3, Math.min(6, Number(el("trmCount").value || 3)));
-    return Array.from({length:n},(_,i)=>({key:`set${i+1}`,title:`${i+1}本目メンバー`,note:`TRM ${i+1}本目の出場メンバー`}));
-  }
-  return [{key:"starter",title:"スタメン設定",note:"公式戦の先発メンバー"}];
-}
-function tb23PlayerOptions(selected){
-  const players = [...tb23Players()].sort((a,b)=>Number(a.number)-Number(b.number));
-  return `<option value="">未選択</option>` + players.map(p=>`<option value="${p.id}" ${selected===p.id ? "selected" : ""}>${esc(tb23PlayerLabel(p))}</option>`).join("");
-}
-function tb23Capture(){
-  document.querySelectorAll("[data-member-slot]").forEach(sel=>{
-    const setKey = sel.dataset.memberSet;
-    const slotId = sel.dataset.memberSlot;
-    if(!tb23MemberSelectionState[setKey]) tb23MemberSelectionState[setKey] = {};
-    tb23MemberSelectionState[setKey][slotId] = sel.value || "";
-  });
-  const grouped = {};
-  document.querySelectorAll("[data-sub-field]").forEach(input=>{
-    const id = input.dataset.subId;
-    if(!grouped[id]) grouped[id] = {id};
-    grouped[id][input.dataset.subField] = input.value || "";
-  });
-  const ids = Array.from(document.querySelectorAll("[data-sub-id]")).map(x=>x.dataset.subId);
-  if(ids.length) tb23SubstitutionState = Array.from(new Set(ids)).map(id=>grouped[id] || tb23SubstitutionState.find(s=>s.id===id) || {id});
-}
-function tb23Coords(){
-  const lines = tb23ParseFormation(el("formationInput").value);
-  const rows = [1, ...lines];
-  const totalRows = rows.length;
-  const coords = [{slotId:"GK1", label:"GK", x:120, y:320}];
-  const roles = tb23RoleNames(lines.length);
-  lines.forEach((count,i)=>{
-    const x = totalRows === 1 ? 500 : 120 + ((i+1) * 760 / (totalRows-1));
-    for(let k=0;k<count;k++){
-      const y = count === 1 ? 320 : 100 + (k * (440 / (count-1)));
-      coords.push({slotId:`${roles[i]}${k+1}`, label:`${roles[i]}${k+1}`, x, y});
-    }
-  });
-  return coords;
-}
-function tb23MembersForSet(setKey){
-  const state = tb23MemberSelectionState[setKey] || {};
-  return tb23Coords().map(pos=>{
-    const p = tb23Players().find(x=>x.id === (state[pos.slotId] || ""));
-    return {...pos, playerId:p ? p.id : "", number:p ? p.number : "", name:p ? p.name : ""};
-  });
-}
-function tb23FormationSvg(members){
-  let stripes = "";
-  for(let x=0;x<1000;x+=100) stripes += `<rect x="${x}" y="0" width="50" height="640" fill="rgba(255,255,255,.05)"/>`;
-  const playersSvg = (members||[]).map(p=>`
-    <g transform="translate(${p.x},${p.y})">
-      <circle cx="0" cy="0" r="27" fill="${p.number ? "#ffffff" : "rgba(255,255,255,.22)"}" stroke="#102d1c" stroke-width="3"/>
-      <text x="0" y="7" text-anchor="middle" font-size="20" font-weight="900" fill="#102d1c">${esc(p.number || p.label)}</text>
-      <text x="0" y="48" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">${esc(p.name || "")}</text>
-    </g>
-  `).join("");
-  return `<svg viewBox="0 0 1000 640">
-    <rect x="0" y="0" width="1000" height="640" fill="#11813e"/>${stripes}
-    <rect x="24" y="24" width="952" height="592" rx="28" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-    <line x1="500" y1="24" x2="500" y2="616" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-    <circle cx="500" cy="320" r="80" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-    <rect x="24" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-    <rect x="820" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-    ${playersSvg}
-  </svg>`;
-}
-function tb23RenderMemberSet(set){
-  const state = tb23MemberSelectionState[set.key] || {};
-  const rows = tb23Slots().map(slot=>`
-    <div class="member-row">
-      <span class="member-position-label">${esc(slot.label)}</span>
-      <select data-member-set="${set.key}" data-member-slot="${slot.slotId}">
-        ${tb23PlayerOptions(state[slot.slotId] || "")}
-      </select>
-    </div>`).join("");
-  return `<section class="member-set-panel">
-    <div class="member-set-head">
-      <div><h4>${esc(set.title)}</h4><p class="member-sub-note">${esc(set.note)}</p></div>
-      <span class="match-set-badge">${esc(el("formationInput").value || "4-4-2")}</span>
-    </div>
-    <div class="member-assign-list">${rows}</div>
-    <div class="member-board" data-member-board="${set.key}">${tb23FormationSvg(tb23MembersForSet(set.key))}</div>
-  </section>`;
-}
-function tb23RenderSubstitutions(){
-  if(el("matchType").value === "trm") return "";
-  const rows = tb23SubstitutionState.map(s=>`
-    <div class="sub-row" data-sub-id="${s.id}">
-      <label>時間<input data-sub-field="time" data-sub-id="${s.id}" value="${esc(s.time || "")}" placeholder="例：55分"></label>
-      <label>OUT<select data-sub-field="outPlayerId" data-sub-id="${s.id}">${tb23PlayerOptions(s.outPlayerId || "")}</select></label>
-      <label>IN<select data-sub-field="inPlayerId" data-sub-id="${s.id}">${tb23PlayerOptions(s.inPlayerId || "")}</select></label>
-      <label>交代後ポジション<input data-sub-field="position" data-sub-id="${s.id}" value="${esc(s.position || "")}" placeholder="例：FW1 / SH / CB"></label>
-      <button type="button" class="danger" data-sub-delete="${s.id}">×</button>
-    </div>`).join("");
-  return `<section class="substitution-panel">
-    <div class="substitution-head">
-      <div><h4>交代選手 / ポジション変更</h4><p class="member-sub-note">公式戦のみ。時間、OUT、IN、交代後ポジションを登録できます。</p></div>
-      <button id="addSubstitutionBtn" type="button" class="primary">＋ 交代追加</button>
-    </div>
-    <div class="substitution-list">${rows || `<div class="no-player-note">交代がある場合は「交代追加」を押してください。</div>`}</div>
-  </section>`;
-}
-function tb23BindMemberEditor(){
-  document.querySelectorAll("[data-member-slot]").forEach(sel=>{
-    sel.onchange=()=>{
-      if(!tb23MemberSelectionState[sel.dataset.memberSet]) tb23MemberSelectionState[sel.dataset.memberSet] = {};
-      tb23MemberSelectionState[sel.dataset.memberSet][sel.dataset.memberSlot] = sel.value || "";
-      const board = document.querySelector(`[data-member-board="${sel.dataset.memberSet}"]`);
-      if(board) board.innerHTML = tb23FormationSvg(tb23MembersForSet(sel.dataset.memberSet));
-    };
-  });
-  document.querySelectorAll("[data-sub-field]").forEach(x=>{x.oninput=tb23Capture;x.onchange=tb23Capture;});
-  document.querySelectorAll("[data-sub-delete]").forEach(btn=>{
-    btn.onclick=()=>{tb23Capture();tb23SubstitutionState=tb23SubstitutionState.filter(s=>s.id!==btn.dataset.subDelete);tb23RenderMemberEditor();};
-  });
-  const add = el("addSubstitutionBtn");
-  if(add) add.onclick=()=>{tb23Capture();tb23SubstitutionState.push({id:uid(),time:"",outPlayerId:"",inPlayerId:"",position:""});tb23RenderMemberEditor();};
-}
-function tb23RenderMemberEditor(){
-  const root = el("memberEditorRoot");
-  if(!root) return;
-  const isTrm = el("matchType").value === "trm";
-  el("memberPanelTitle").textContent = isTrm ? "TRMメンバー / フォーメーション" : "スタメン表示 / フォーメーション";
-  el("memberPanelNote").textContent = isTrm ? "TRMはスタメンではなく、1本目メンバー・2本目メンバーのように本数ごとに登録します。" : "公式戦はスタメン、交代時間、交代選手、交代後ポジションを登録できます。";
-  if(!tb23Players().length){
-    root.innerHTML = `<div class="no-player-note">設定ページで選手登録をすると、ここにメンバー選択欄が表示されます。</div>`;
-    return;
-  }
-  tb23SetDefs().forEach(s=>{ if(!tb23MemberSelectionState[s.key]) tb23MemberSelectionState[s.key] = {}; });
-  root.innerHTML = tb23SetDefs().map(tb23RenderMemberSet).join("") + tb23RenderSubstitutions();
-  tb23BindMemberEditor();
-}
-function tb23CollectMemberSets(){
-  tb23Capture();
-  const out = {};
-  tb23SetDefs().forEach(s=>out[s.key]=clone(tb23MemberSelectionState[s.key] || {}));
-  return out;
-}
-function tb23StartersForSet(setKey){
-  return tb23MembersForSet(setKey).map(p=>({slotId:p.slotId,label:p.label,playerId:p.playerId,number:p.number,name:p.name}));
-}
-function tb23SetStateFromSaved(starters, memberSets, substitutions){
-  tb23MemberSelectionState = memberSets ? clone(memberSets) : {};
-  if(!memberSets && Array.isArray(starters)){
-    tb23MemberSelectionState.starter = {};
-    starters.forEach(s=>{if(s && s.slotId) tb23MemberSelectionState.starter[s.slotId]=s.playerId || "";});
-  }
-  tb23SubstitutionState = Array.isArray(substitutions) ? clone(substitutions) : [];
-}
-function tb23MiniFormation(match){
-  const oldFormation = el("formationInput") ? el("formationInput").value : "4-4-2";
-  const oldState = clone(tb23MemberSelectionState);
-  if(el("formationInput")) el("formationInput").value = match.formation || "4-4-2";
-  tb23MemberSelectionState = clone(match.memberSets || {});
-  if(!match.memberSets && match.starters){
-    tb23MemberSelectionState.starter = {};
-    match.starters.forEach(s=>{if(s && s.slotId) tb23MemberSelectionState.starter[s.slotId]=s.playerId || "";});
-  }
-  const keys = match.matchType === "trm"
-    ? Array.from({length:Math.max(3,Math.min(6,Number(match.trmCount||3)))},(_,i)=>({key:`set${i+1}`,title:`${i+1}本目メンバー`}))
-    : [{key:"starter",title:"スタメン"}];
-  const html = keys.map(k=>`<div class="mini-lineup-board"><div class="match-set-title">${esc(k.title)}</div>${tb23FormationSvg(tb23MembersForSet(k.key))}</div>`).join("");
-  tb23MemberSelectionState = oldState;
-  if(el("formationInput")) el("formationInput").value = oldFormation;
-  return html;
-}
-function tb23SubChips(match){
-  const subs = (match.substitutions || []).filter(s=>s.inPlayerId || s.outPlayerId || s.time || s.position);
-  if(!subs.length) return "";
-  return `<div class="lineup-chip-row">${subs.map(s=>{
-    const outP = tb23Players().find(p=>p.id===s.outPlayerId);
-    const inP = tb23Players().find(p=>p.id===s.inPlayerId);
-    return `<span class="match-sub-chip">${esc(s.time || "-")} OUT ${outP ? "#"+esc(outP.number)+" "+esc(outP.name) : "-"} / IN ${inP ? "#"+esc(inP.number)+" "+esc(inP.name) : "-"} ${s.position ? "→ "+esc(s.position) : ""}</span>`;
-  }).join("")}</div>`;
-}
-
-/* Override existing names used by app */
-function renderStarterAssignments(){ tb23RenderMemberEditor(); }
-function renderFormationPreview(){ tb23RenderMemberEditor(); }
-
-
-function applySelectedColor(){
-  const o = getSelectedObject ? getSelectedObject() : null;
-  if(!o){ toast("色を変えるパーツを選択してください"); return; }
-  o.color = el("partColor").value || "#ffffff";
-  renderBoard();
-  toast("色を変更しました");
-}
 document.addEventListener("DOMContentLoaded",()=>{
   if(!sessions.length){sessions=[sample()];saveAll();}
   if(!Array.isArray(masters.players)) masters.players = [];
@@ -1521,7 +1274,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   el("sizeUpBtn").onclick=()=>adjustSelectedSize(1.1);
   el("duplicateBtn").onclick=duplicateSelectedObject;
   el("deleteSelectedBtn").onclick=deleteSelectedObject;
-  el("applyColorBtn").onclick=applySelectedColor;
   el("rotateLeftBtn").onclick=()=>rotateCurrent(-45);
   el("rotateRightBtn").onclick=()=>rotateCurrent(45);
 
@@ -1562,10 +1314,9 @@ document.addEventListener("DOMContentLoaded",()=>{
       el("matchName").value = el("matchType").value==="trm" ? "TRM" : "公式戦";
     }
     renderScoreInputs();
-    tb23RenderMemberEditor();
   };
-  el("trmCount").onchange=()=>{renderScoreInputs();tb23RenderMemberEditor();};
-  el("formationInput").oninput=()=>tb23RenderMemberEditor();
+  el("trmCount").onchange=()=>renderScoreInputs();
+  el("formationInput").oninput=()=>renderStarterAssignments();
 
   // 資料
   el("clearMaterialFormBtn").onclick=clearMaterialForm;

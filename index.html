@@ -167,10 +167,6 @@
 
           <button class="tool" data-tool="centerLine"><span class="mini-line"></span><span id="toolLabelCenterLine">センターライン</span></button>
           <button class="tool" data-tool="centerCircle"><span class="mini-center-circle"></span><span id="toolLabelCenterCircle">センターサークル</span></button>
-          <button class="tool" data-tool="shapeCircle"><span class="mini-shape-circle"></span><span>円</span></button>
-          <button class="tool" data-tool="horizontalLine"><span class="mini-horizontal-line"></span><span>横線</span></button>
-          <button class="tool" data-tool="verticalLine"><span class="mini-vertical-line"></span><span>縦線</span></button>
-
           <button class="tool" data-tool="courtArea"><span class="penalty-icon"></span><span id="toolLabelCourtArea">ペナルティエリア</span></button>
           <button class="tool" data-tool="goalFrame"><span class="goal-icon"></span><span id="toolLabelGoalFrame">ゴール枠</span></button>
 
@@ -185,15 +181,6 @@
           <p>選手・用具：空いている場所をタップすると配置 / 置いた後はドラッグ移動</p>
           <p>白線・矢印・点線矢印：ドラッグして描画 / 端点をドラッグして調整</p>
           <p>選択中パーツ：サイズ変更・複製・削除・回転が可能</p>
-        </div>
-
-        
-        <div class="color-box">
-          <p>パーツ色</p>
-          <div class="color-row">
-            <input id="partColor" type="color" value="#ffffff" aria-label="パーツ色">
-            <button id="applyColorBtn" type="button">選択中に適用</button>
-          </div>
         </div>
 
         <div class="rotation-box">
@@ -307,15 +294,25 @@
       <section class="wide lineup-panel">
         <div class="lineup-head">
           <div>
-            <h3 id="memberPanelTitle">スタメン表示 / フォーメーション</h3>
-            <p id="memberPanelNote">設定ページで登録した選手を、背番号つきでポジションに配置できます。</p>
+            <h3>スタメン表示 / フォーメーション</h3>
+            <p>設定ページで登録した選手を、背番号つきでポジションに配置できます。</p>
           </div>
           <label>フォーメーション
             <input id="formationInput" placeholder="例：4-4-2" value="4-4-2">
           </label>
         </div>
 
-        <div id="memberEditorRoot" class="member-editor-root"></div>
+        <div class="lineup-layout">
+          <section class="lineup-block">
+            <h4>スタメン設定</h4>
+            <div id="starterAssignList" class="starter-assign-list"></div>
+          </section>
+
+          <section class="lineup-block">
+            <h4>配置プレビュー</h4>
+            <div id="formationPreview" class="formation-preview"></div>
+          </section>
+        </div>
       </section>
 
       <label class="wide">動画URL
@@ -500,15 +497,7 @@
   <form method="dialog"><button>閉じる</button></form>
 </dialog>
 
-
-  <div class="compat-hidden" aria-hidden="true">
-    <div id="formationPreview"></div>
-    <div id="starterAssignList"></div>
-    <div id="totalScore"></div>
-    <div id="resultLabel"></div>
-  </div>
-
-  <div id="toast"></div>
+<div id="toast"></div>
 <script src="app.js"></script>
 </body>
 </html>
