@@ -4,6 +4,8 @@ const MASTER_KEY = "teamboard-v5-masters";
 const MATCH_KEY = "teamboard-v9-matches";
 const MATERIAL_KEY = "teamboard-v21-materials";
 const SYNC_KEY = "teamboard-v5-sync";
+const ACTIVE_YEAR_KEY = "teamboard-active-year";
+const DEFAULT_YEAR = "2026年度";
 const PARTS = [["wup","W-up"],["tr1","TR1"],["tr2","TR2"],["game","Game"]];
 
 const defaultMasters = {
@@ -13,7 +15,9 @@ const defaultMasters = {
   ages: ["U-8","U-10","U-12","U-15","U-18","一般"],
   logoData: "teamboard-logo.png",
   surfaceType: "soccer",
-  players: []
+  players: [],
+  years: ["2026年度"],
+  yearMasters: {}
 };
 
 let sessions = loadLocal(DATA_KEY, []);
@@ -22,6 +26,7 @@ let materials = loadLocal(MATERIAL_KEY, []);
 let masters = loadLocal(MASTER_KEY, defaultMasters);
 if(!Array.isArray(masters.players)) masters.players = [];
 let syncSetting = loadLocal(SYNC_KEY, {gasUrl:"", teamKey:""});
+let activeYear = loadLocal(ACTIVE_YEAR_KEY, DEFAULT_YEAR) || DEFAULT_YEAR;
 let draft = emptySession();
 let activePart = "wup";
 let activeTool = "attack";
@@ -30,6 +35,128 @@ let currentRotation = 0;
 let currentPartColor = "#ffffff";
 
 const el = id => document.getElementById(id);
+
+function normalizeYear(v){ return String(v || DEFAULT_YEAR).trim() || DEFAULT_YEAR; }
+function ensureYears(){
+  if(!Array.isArray(masters.years)) masters.years = [DEFAULT_YEAR];
+  masters.years = [...new Set(masters.years.map(normalizeYear).filter(Boolean))];
+  if(!masters.years.length) masters.years = [DEFAULT_YEAR];
+  if(!masters.years.includes(DEFAULT_YEAR)) masters.years.unshift(DEFAULT_YEAR);
+  if(!masters.yearMasters || typeof masters.yearMasters !== "object") masters.yearMasters = {};
+  activeYear = normalizeYear(activeYear);
+  if(!masters.years.includes(activeYear)) activeYear = DEFAULT_YEAR;
+}
+function itemYear(item){ return normalizeYear(item && item.year); }
+function inActiveYear(item){ return itemYear(item) === activeYear; }
+function yearSessions(){ return sessions; }
+function yearMatches(){ return matches.filter(inActiveYear); }
+function yearMaterials(){ return materials.filter(inActiveYear); }
+function defaultYearMaster(){
+  return {
+    tags: [...defaultMasters.tags],
+    times: [...defaultMasters.times],
+    categories: [...defaultMasters.categories],
+    ages: [...defaultMasters.ages],
+    players: [],
+    surfaceType: "soccer"
+  };
+}
+function activeMasterSnapshot(){
+  return {
+    tags: Array.isArray(masters.tags) ? [...masters.tags] : [],
+    times: Array.isArray(masters.times) ? [...masters.times] : [],
+    categories: Array.isArray(masters.categories) ? [...masters.categories] : [],
+    ages: Array.isArray(masters.ages) ? [...masters.ages] : [],
+    players: Array.isArray(masters.players) ? clone(masters.players) : [],
+    surfaceType: masters.surfaceType || "soccer"
+  };
+}
+function applyYearMaster(year){
+  ensureYears();
+  if(!masters.yearMasters || typeof masters.yearMasters !== "object") masters.yearMasters = {};
+  const y = normalizeYear(year);
+  if(!masters.yearMasters[y]) masters.yearMasters[y] = y === DEFAULT_YEAR ? activeMasterSnapshot() : defaultYearMaster();
+  const ym = masters.yearMasters[y];
+  masters.tags = Array.isArray(ym.tags) ? [...ym.tags] : [...defaultMasters.tags];
+  masters.times = Array.isArray(ym.times) ? [...ym.times] : [...defaultMasters.times];
+  masters.categories = Array.isArray(ym.categories) ? [...ym.categories] : [...defaultMasters.categories];
+  masters.ages = Array.isArray(ym.ages) ? [...ym.ages] : [...defaultMasters.ages];
+  masters.players = Array.isArray(ym.players) ? clone(ym.players) : [];
+  masters.surfaceType = ym.surfaceType || "soccer";
+}
+function persistCurrentYearMaster(){
+  ensureYears();
+  if(!masters.yearMasters || typeof masters.yearMasters !== "object") masters.yearMasters = {};
+  masters.yearMasters[activeYear] = activeMasterSnapshot();
+}
+function setActiveYear(year){
+  persistCurrentYearMaster();
+  activeYear = normalizeYear(year);
+  if(!masters.years.includes(activeYear)){
+    masters.years.push(activeYear);
+    saveMasters();
+  }
+  saveLocal(ACTIVE_YEAR_KEY, activeYear);
+  applyYearMaster(activeYear);
+  saveMasters();
+  refreshMastersUI();
+  renderYearSelects();
+  renderAll();
+  bindYearSwitch();
+  clearMatchForm();
+  clearMaterialForm();
+  toast(activeYear + "に切り替えました");
+}
+function nextSchoolYearLabel(year){
+  const m = String(year || DEFAULT_YEAR).match(/(\d{4})/);
+  const base = m ? Number(m[1]) : 2026;
+  return `${base + 1}年度`;
+}
+function rolloverYear(){
+  persistCurrentYearMaster();
+  const fromYear = activeYear;
+  const nextYear = nextSchoolYearLabel(fromYear);
+  if(masters.years.includes(nextYear) && masters.yearMasters && masters.yearMasters[nextYear]){
+    if(!confirm(`${nextYear}はすでにあります。${fromYear}のマスタで上書きコピーしますか？`)) return;
+  }else{
+    if(!confirm(`${fromYear}の選手管理・マスタ管理をコピーして、${nextYear}を作成しますか？`)) return;
+  }
+  if(!masters.yearMasters || typeof masters.yearMasters !== "object") masters.yearMasters = {};
+  const copied = clone(masters.yearMasters[fromYear] || activeMasterSnapshot());
+  masters.yearMasters[nextYear] = copied;
+  if(!masters.years.includes(nextYear)) masters.years.push(nextYear);
+  activeYear = nextYear;
+  saveLocal(ACTIVE_YEAR_KEY, activeYear);
+  applyYearMaster(activeYear);
+  saveMasters();
+  refreshMastersUI();
+  renderYearSelects();
+  renderAll();
+  bindYearSwitch();
+  clearMatchForm();
+  clearMaterialForm();
+  toast(`${nextYear}を作成しました`);
+}
+function renderYearSelects(){
+  ensureYears();
+  const opts = masters.years.map(y=>`<option value="${esc(y)}" ${y===activeYear ? "selected" : ""}>${esc(y)}</option>`).join("");
+  if(el("activeYearSelect")) el("activeYearSelect").innerHTML = opts;
+  if(el("masterYears")) el("masterYears").value = masters.years.join("\n");
+}
+function bindYearSwitch(){
+  const sel = el("activeYearSelect");
+  if(sel){
+    sel.value = activeYear;
+    sel.onchange = (e)=>setActiveYear(e.target.value);
+  }
+}
+function migrateYearFields(){
+  let changed = false;
+  matches.forEach(m=>{ if(!m.year){ m.year = DEFAULT_YEAR; changed = true; } });
+  materials.forEach(m=>{ if(!m.year){ m.year = DEFAULT_YEAR; changed = true; } });
+  if(changed){ saveAll(); saveMatches(); saveMaterials(); }
+}
+
 
 function loadLocal(k, fallback){try{return JSON.parse(localStorage.getItem(k)) || fallback;}catch(e){return fallback;}}
 function saveLocal(k,v){localStorage.setItem(k, JSON.stringify(v));}
@@ -61,6 +188,8 @@ function refreshMastersUI(){
   fillSelect("matchCategory", masters.ages);
   fillSelect("materialCategory", masters.ages);
   if(!Array.isArray(masters.players)) masters.players = [];
+  ensureYears();
+  renderYearSelects();
   el("masterTags").value = masters.tags.join("\n");
   el("masterTimes").value = masters.times.join("\n");
   el("masterCategories").value = masters.categories.join("\n");
@@ -108,13 +237,21 @@ function readMastersUI(){
   masters.times = lines("masterTimes");
   masters.categories = lines("masterCategories");
   masters.ages = lines("masterAges");
+  masters.years = lines("masterYears").length ? lines("masterYears").map(normalizeYear) : [DEFAULT_YEAR];
+  masters.years = [...new Set(masters.years)];
+  if(!masters.years.includes(DEFAULT_YEAR)) masters.years.unshift(DEFAULT_YEAR);
+  if(!masters.years.includes(activeYear)) activeYear = masters.years[0] || DEFAULT_YEAR;
+  saveLocal(ACTIVE_YEAR_KEY, activeYear);
   masters.logoData = (masters.logoData === undefined || masters.logoData === null) ? "teamboard-logo.png" : masters.logoData;
   masters.surfaceType = el("surfaceType").value || "soccer";
   if(!Array.isArray(masters.players)) masters.players = [];
+  persistCurrentYearMaster();
   saveMasters();
   refreshMastersUI();
+  renderYearSelects();
+  renderAll();
   renderTags();
-  toast("マスタを保存しました");
+  toast(activeYear + "のマスタを保存しました");
 }
 
 function pitchBase(){
@@ -646,7 +783,7 @@ function bindCardActions(root=document){
 }
 
 function renderRecent(){
-  const recent = sessions.slice(0,4);
+  const recent = yearSessions().slice(0,4);
   el("recentCards").innerHTML = recent.length ? recent.map(s=>cardHtml(s,true)).join("") : `<div class="empty"><h3>まだ指導案がありません</h3><p>新規作成から始めてください。</p></div>`;
   bindCardActions(el("recentCards"));
 }
@@ -656,7 +793,7 @@ function filteredSessions(){
   const pf=el("partFilter").value;
   const cf=el("categoryFilter").value;
   const tf=el("tagFilter").value.toLowerCase().trim();
-  return sessions.filter(s=>{
+  return yearSessions().filter(s=>{
     const parts=pf?[s.parts[pf]]:Object.values(s.parts);
     const text=[s.title,s.age,s.category,s.timePlan,s.tags,...parts.flatMap(p=>[p.organize,p.rules,p.coaching])].join(" ").toLowerCase();
     const tags=splitTags(s.tags).map(t=>t.toLowerCase());
@@ -687,9 +824,9 @@ function preview(id){
 function updateSyncStatus(){el("syncStatus").textContent=(syncSetting.gasUrl&&syncSetting.teamKey)?"同期設定あり：右上の同期からDrive保存・読み込みできます":"Drive未接続：端末内に保存中";}
 function openSync(){el("gasUrl").value=syncSetting.gasUrl||"";el("teamKey").value=syncSetting.teamKey||"";el("syncDialog").showModal();}
 function saveSyncSetting(){syncSetting={gasUrl:el("gasUrl").value.trim(),teamKey:el("teamKey").value.trim()};saveLocal(SYNC_KEY,syncSetting);updateSyncStatus();toast("同期設定を保存しました");}
-async function pushDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}const payload={action:"save",teamKey:syncSetting.teamKey,data:{version:21,updatedAt:new Date().toISOString(),sessions,masters,matches,materials}};try{const res=await fetch(syncSetting.gasUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});const json=await res.json();if(!json.ok)throw new Error(json.error||"保存失敗");toast("Driveへ保存しました");}catch(e){alert("Drive保存に失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
-async function pullDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}if(sessions.length&&!confirm("Driveのデータでこの端末のデータを置き換えますか？"))return;try{const url=syncSetting.gasUrl+"?action=load&teamKey="+encodeURIComponent(syncSetting.teamKey);const res=await fetch(url);const json=await res.json();if(!json.ok)throw new Error(json.error||"読み込み失敗");sessions=(json.data&&json.data.sessions)||[];matches=(json.data&&json.data.matches)||[];materials=(json.data&&json.data.materials)||[];masters={...defaultMasters, ...((json.data&&json.data.masters)||masters)};saveAll();saveMatches();saveMaterials();saveMasters();refreshMastersUI();renderAll();toast("Driveから読み込みました");}catch(e){alert("Drive読み込みに失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
-function downloadJson(){const blob=new Blob([JSON.stringify({version:21,updatedAt:new Date().toISOString(),sessions,masters,matches,materials},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="TeamBoard-data.json";a.click();URL.revokeObjectURL(a.href);}
+async function pushDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}const payload={action:"save",teamKey:syncSetting.teamKey,data:{version:27,updatedAt:new Date().toISOString(),activeYear,sessions,masters,matches,materials}};try{const res=await fetch(syncSetting.gasUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});const json=await res.json();if(!json.ok)throw new Error(json.error||"保存失敗");toast("Driveへ保存しました");}catch(e){alert("Drive保存に失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
+async function pullDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}if(sessions.length&&!confirm("Driveのデータでこの端末のデータを置き換えますか？"))return;try{const url=syncSetting.gasUrl+"?action=load&teamKey="+encodeURIComponent(syncSetting.teamKey);const res=await fetch(url);const json=await res.json();if(!json.ok)throw new Error(json.error||"読み込み失敗");sessions=(json.data&&json.data.sessions)||[];matches=(json.data&&json.data.matches)||[];materials=(json.data&&json.data.materials)||[];masters={...defaultMasters, ...((json.data&&json.data.masters)||masters)};activeYear=normalizeYear((json.data&&json.data.activeYear)||activeYear);ensureYears();migrateYearFields();applyYearMaster(activeYear);saveAll();saveMatches();saveMaterials();saveMasters();refreshMastersUI();renderAll();toast("Driveから読み込みました");}catch(e){alert("Drive読み込みに失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
+function downloadJson(){const blob=new Blob([JSON.stringify({version:27,updatedAt:new Date().toISOString(),activeYear,sessions,masters,matches,materials},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="TeamBoard-data.json";a.click();URL.revokeObjectURL(a.href);}
 
 
 
@@ -704,6 +841,7 @@ function num(id){
 }
 
 let lineupState = { official:{}, officialSubs:[], trm:{} };
+let goalEventState = [];
 
 function emptyLineupState(){ return { official:{}, officialSubs:[], trm:{} }; }
 function playerLabel(p){ return `#${p.number} ${p.name}`; }
@@ -752,8 +890,11 @@ function addPlayerMaster(){
     return;
   }
   masters.players.push({id:uid(), number, name});
+  persistCurrentYearMaster();
   saveMasters();
   renderPlayerMasterList();
+  renderPlayerStats();
+  renderGoalEventInputs();
   renderStarterAssignments();
   el("playerNumberInput").value = "";
   el("playerNameInput").value = "";
@@ -763,8 +904,11 @@ function deletePlayerMaster(id){
   if(!confirm("この選手を削除しますか？")) return;
   masters.players = getPlayers().filter(p => p.id !== id);
   normalizePlayerDeleteInLineup(id);
+  persistCurrentYearMaster();
   saveMasters();
   renderPlayerMasterList();
+  renderPlayerStats();
+  renderGoalEventInputs();
   renderStarterAssignments();
   toast("選手を削除しました");
 }
@@ -1187,6 +1331,194 @@ function renderScoreInputs(prefill){
     el(`scoreOpp_${i}`).oninput = updateMatchTotal;
   });
   updateMatchTotal();
+  renderGoalEventInputs();
+}
+
+function playerOptionHtml(selected){
+  const players = sortedPlayers();
+  return `<option value="">未選択</option>` + players.map(p=>`<option value="${p.id}" ${selected===p.id ? "selected" : ""}>${esc(playerLabel(p))}</option>`).join("");
+}
+function scoreLabelOptions(selected){
+  const labels = getScoreLabels(el("matchType").value, el("trmCount").value);
+  return labels.map(label=>`<option value="${esc(label)}" ${selected===label ? "selected" : ""}>${esc(label)}</option>`).join("");
+}
+function normalizeGoalEvent(e={}){
+  return {
+    id: e.id || uid(),
+    period: e.period || getScoreLabels(el("matchType").value, el("trmCount").value)[0] || "",
+    minute: e.minute || "",
+    scorerId: e.scorerId || "",
+    assistId: e.assistId || "",
+    note: e.note || ""
+  };
+}
+
+function addGoalEvent(){
+  captureGoalEventStateFromDOM();
+  goalEventState.push(normalizeGoalEvent({}));
+  renderGoalEventInputs();
+}
+
+function renderGoalEventInputs(){
+  const wrap = el("goalEventList");
+  if(!wrap) return;
+  if(!goalEventState.length) goalEventState = [normalizeGoalEvent({})];
+  const players = sortedPlayers();
+  if(!players.length){
+    wrap.innerHTML = `<div class="no-player-note">設定ページで選手登録をすると、得点者・アシストを選択できます。</div>`;
+    return;
+  }
+  wrap.innerHTML = goalEventState.map((e, i)=>{
+    const ev = normalizeGoalEvent(e);
+    return `<div class="goal-event-row" data-goal-event="${esc(ev.id)}">
+      <label>区分
+        <select data-goal-period>${scoreLabelOptions(ev.period)}</select>
+      </label>
+      <label>時間
+        <input data-goal-minute type="text" placeholder="例：23分" value="${esc(ev.minute)}">
+      </label>
+      <label>得点
+        <select data-goal-scorer>${playerOptionHtml(ev.scorerId)}</select>
+      </label>
+      <label>アシスト
+        <select data-goal-assist>${playerOptionHtml(ev.assistId)}</select>
+      </label>
+      <label>メモ
+        <input data-goal-note type="text" placeholder="例：CK / PK" value="${esc(ev.note)}">
+      </label>
+      <button type="button" class="danger small-btn" data-remove-goal-event>削除</button>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("[data-goal-event]").forEach(row=>{
+    const save = ()=>captureGoalEventStateFromDOM();
+    row.querySelectorAll("select,input").forEach(inp=>{
+      inp.onchange = save;
+      inp.oninput = save;
+    });
+    const del = row.querySelector("[data-remove-goal-event]");
+    if(del){
+      del.onclick = ()=>{
+        const id = row.dataset.goalEvent;
+        goalEventState = goalEventState.filter(e=>e.id !== id);
+        if(!goalEventState.length) goalEventState = [normalizeGoalEvent({})];
+        renderGoalEventInputs();
+      };
+    }
+  });
+}
+function captureGoalEventStateFromDOM(){
+  const rows = Array.from(document.querySelectorAll("[data-goal-event]"));
+  goalEventState = rows.map(row=>({
+    id: row.dataset.goalEvent || uid(),
+    period: row.querySelector("[data-goal-period]")?.value || "",
+    minute: row.querySelector("[data-goal-minute]")?.value || "",
+    scorerId: row.querySelector("[data-goal-scorer]")?.value || "",
+    assistId: row.querySelector("[data-goal-assist]")?.value || "",
+    note: row.querySelector("[data-goal-note]")?.value || ""
+  })).filter(e=>e.scorerId || e.assistId || e.minute || e.note);
+}
+function readGoalEvents(){
+  captureGoalEventStateFromDOM();
+  return goalEventState.map(e=>{
+    const scorer = playerById(e.scorerId);
+    const assist = playerById(e.assistId);
+    return {
+      id: e.id || uid(),
+      period: e.period || "",
+      minute: e.minute || "",
+      scorerId: e.scorerId || "",
+      scorerNumber: scorer ? scorer.number : "",
+      scorerName: scorer ? scorer.name : "",
+      assistId: e.assistId || "",
+      assistNumber: assist ? assist.number : "",
+      assistName: assist ? assist.name : "",
+      note: e.note || ""
+    };
+  }).filter(e=>e.scorerId || e.assistId || e.minute || e.note);
+}
+function setGoalEventsFromSaved(events=[]){
+  goalEventState = (events || []).map(e=>normalizeGoalEvent({
+    id: e.id,
+    period: e.period,
+    minute: e.minute,
+    scorerId: e.scorerId,
+    assistId: e.assistId,
+    note: e.note
+  }));
+  if(!goalEventState.length) goalEventState = [normalizeGoalEvent({})];
+}
+function playerPlaytimeTextForMatch(match, playerId){
+  const type = match.matchType || "official";
+  if(type === "trm"){
+    const n = Math.max(3, Math.min(6, Number(match.trmCount || 3)));
+    const labels = [];
+    for(let i=1;i<=n;i++){
+      const key = `trm_${i}`;
+      const items = lineupEntriesForMatch(match, key);
+      if(items.some(p=>p.playerId === playerId)) labels.push(`${i}本目`);
+    }
+    return labels.join(" / ");
+  }
+  const starters = lineupEntriesForMatch(match, "official_start");
+  const subs = match.lineup?.officialSubs || match.subs || [];
+  if(starters.some(p=>p.playerId === playerId)) return "スタメン";
+  const sub = subs.find(p=>p.playerId === playerId);
+  if(sub) return `交代 ${sub.minute || ""}${sub.position ? " / " + sub.position : ""}`.trim();
+  return "";
+}
+function buildPlayerStats(){
+  const stats = {};
+  const scopedMatches = yearMatches();
+  sortedPlayers().forEach(p=>{
+    stats[p.id] = {player:p, goals:0, assists:0, playtime:[], matches:0};
+  });
+  matches.forEach(m=>{
+    (m.goalEvents || []).forEach(e=>{
+      if(e.scorerId && stats[e.scorerId]) stats[e.scorerId].goals += 1;
+      if(e.assistId && stats[e.assistId]) stats[e.assistId].assists += 1;
+    });
+    Object.keys(stats).forEach(pid=>{
+      const pt = playerPlaytimeTextForMatch(m, pid);
+      if(pt){
+        stats[pid].matches += 1;
+        stats[pid].playtime.push(`${m.date || "-"} ${m.name || ""}${m.opponent ? " vs " + m.opponent : ""}: ${pt}`);
+      }
+    });
+  });
+  return Object.values(stats);
+}
+function renderPlayerStats(){
+  const wrap = el("playerStatsList");
+  const badge = el("playerStatsCountBadge");
+  if(!wrap) return;
+  const stats = buildPlayerStats();
+  if(badge) badge.textContent = stats.length + "人";
+  wrap.innerHTML = stats.length ? `<div class="player-stats-table">
+    <div class="player-stats-head">
+      <span>選手</span><span>得点</span><span>アシスト</span><span>プレータイム</span>
+    </div>
+    ${stats.map(s=>`<div class="player-stats-row">
+      <span class="player-name-cell">${esc(playerLabel(s.player))}</span>
+      <span>${s.goals}</span>
+      <span>${s.assists}</span>
+      <span class="playtime-cell">${s.playtime.length ? esc(s.playtime.join(" / ")) : "-"}</span>
+    </div>`).join("")}
+  </div>` : `<div class="empty"><h3>選手が登録されていません</h3><p>設定ページで背番号と名前を登録してください。</p></div>`;
+}
+function goalEventsBlock(m){
+  const events = m.goalEvents || [];
+  if(!events.length) return "";
+  return `<div class="goal-events-block">
+    <h4>得点 / アシスト</h4>
+    <div class="goal-event-chips">
+      ${events.map(e=>`<span class="goal-event-chip">
+        ${e.period ? esc(e.period) + " " : ""}${e.minute ? esc(e.minute) + " " : ""}
+        得点 ${e.scorerNumber ? "#" + esc(e.scorerNumber) + " " : ""}${esc(e.scorerName || "-")}
+        ${e.assistId ? ` / A ${e.assistNumber ? "#" + esc(e.assistNumber) + " " : ""}${esc(e.assistName || "-")}` : ""}
+        ${e.note ? ` / ${esc(e.note)}` : ""}
+      </span>`).join("")}
+    </div>
+  </div>`;
 }
 function clearMatchForm(){
   el("matchId").value = "";
@@ -1200,7 +1532,9 @@ function clearMatchForm(){
   el("formationInput").value = "4-4-2";
   el("matchMemo").value = "";
   lineupState = emptyLineupState();
+  goalEventState = [normalizeGoalEvent({})];
   renderScoreInputs({scores:[{label:"前半",own:0,opp:0},{label:"後半",own:0,opp:0}]});
+  renderGoalEventInputs();
   renderStarterAssignments();
 }
 function readMatchForm(){
@@ -1211,8 +1545,10 @@ function readMatchForm(){
   const totalOpp = scores.reduce((a,b)=>a+Number(b.opp||0),0);
   const lineup = collectLineupFromState();
   const starters = collectStartersFromState();
+  const goalEvents = readGoalEvents();
   return {
     id: el("matchId").value || uid(),
+    year: activeYear,
     matchType: el("matchType").value || "official",
     name: el("matchName").value.trim() || (el("matchType").value === "trm" ? "TRM" : "公式戦"),
     category: el("matchCategory").value || "",
@@ -1230,6 +1566,7 @@ function readMatchForm(){
     lineup,
     starters,
     subs: lineup.officialSubs || [],
+    goalEvents,
     videoUrl: el("videoUrl").value.trim(),
     memo: el("matchMemo").value.trim(),
     updatedAt: new Date().toISOString()
@@ -1237,11 +1574,13 @@ function readMatchForm(){
 }
 function saveMatch(){
   const item = readMatchForm();
+  item.year = activeYear;
   const i = matches.findIndex(m => m.id === item.id);
   if(i >= 0) matches[i] = item;
   else matches.unshift(item);
   saveMatches();
   renderMatches();
+  renderPlayerStats();
   clearMatchForm();
   clearMaterialForm();
   toast("試合結果を保存しました");
@@ -1264,7 +1603,9 @@ function editMatch(id){
     {label:"前半", own:m.firstOwn ?? 0, opp:m.firstOpp ?? 0},
     {label:"後半", own:m.secondOwn ?? 0, opp:m.secondOpp ?? 0}
   ];
+  setGoalEventsFromSaved(m.goalEvents || []);
   renderScoreInputs({scores});
+  renderGoalEventInputs();
   renderStarterAssignments();
   page("resultsPage");
 }
@@ -1273,6 +1614,7 @@ function deleteMatch(id){
   matches = matches.filter(m => m.id !== id);
   saveMatches();
   renderMatches();
+  renderPlayerStats();
 }
 function resultText(m){
   return m.totalOwn > m.totalOpp ? "勝ち" : m.totalOwn < m.totalOpp ? "負け" : "引き分け";
@@ -1359,14 +1701,15 @@ function starterChips(match){
   return matchLineupBlock(match);
 }
 function renderMatches(){
-  el("matchCountBadge").textContent = matches.length + "件";
-  el("matchList").innerHTML = matches.length ? matches.map(m => `
+  const scopedMatches = yearMatches();
+  el("matchCountBadge").textContent = scopedMatches.length + "件";
+  el("matchList").innerHTML = scopedMatches.length ? scopedMatches.map(m => `
     <article class="match-card" data-match-id="${m.id}">
       <div class="match-card-head">
         <div>
           <h3>${esc(m.name || "TRM")}${m.opponent ? ` vs ${esc(m.opponent)}` : ""}</h3>
           <div class="badges">
-            <span class="badge match-type-badge ${esc(m.matchType || "official")}">${m.matchType === "trm" ? "TRM" : "公式戦"}</span>
+            <span class="badge">${esc(itemYear(m))}</span>\n            <span class="badge match-type-badge ${esc(m.matchType || "official")}">${m.matchType === "trm" ? "TRM" : "公式戦"}</span>
             <span class="badge">対象 ${esc(m.category || "-")}</span>
             ${m.opponent ? `<span class="badge">相手 ${esc(m.opponent)}</span>` : ""}
             <span class="badge">${esc(m.date || "-")}</span>
@@ -1378,6 +1721,7 @@ function renderMatches(){
       <div class="match-breakdown">
         ${matchScoreBadges(m)}
       </div>
+      ${goalEventsBlock(m)}
       ${matchLineupBlock(m)}
       ${m.videoUrl ? `<a class="video-link" href="${esc(m.videoUrl)}" target="_blank" rel="noopener noreferrer">動画を開く</a>` : ""}
       ${m.memo ? `<div class="match-memo">${esc(m.memo)}</div>` : ""}
@@ -1466,6 +1810,7 @@ function readMaterialForm(){
   } : null);
   return {
     id: el("materialId").value || uid(),
+    year: activeYear,
     title: el("materialTitle").value.trim() || (file ? file.fileName : "無題の資料"),
     category: el("materialCategory").value || "",
     date: el("materialDate").value || todayISO(),
@@ -1480,6 +1825,7 @@ function readMaterialForm(){
 }
 function saveMaterial(){
   const item = readMaterialForm();
+  item.year = activeYear;
   if(!item.dataUrl){
     toast("PDFまたはPowerPointを選択してください");
     return;
@@ -1513,15 +1859,15 @@ function deleteMaterial(id){
 }
 function renderMaterials(){
   if(!el("materialCountBadge")) return;
-  el("materialCountBadge").textContent = materials.length + "件";
-  el("materialList").innerHTML = materials.length ? materials.map(m => `
+  const scopedMaterials = yearMaterials();
+  el("materialCountBadge").textContent = scopedMaterials.length + "件";
+  el("materialList").innerHTML = scopedMaterials.length ? scopedMaterials.map(m => `
     <article class="material-card" data-material-id="${m.id}">
       <div class="material-card-head">
         <div>
           <h3>${esc(m.title || "無題の資料")}</h3>
           <div class="badges">
-            <span class="badge">対象 ${esc(m.category || "-")}</span>
-            <span class="badge">${esc(m.date || "-")}</span>
+            <span class="badge">${esc(itemYear(m))}</span>\n            <span class="badge">対象 ${esc(m.category || "-")}</span>\n            <span class="badge">${esc(m.date || "-")}</span>
             <span class="badge">${esc(m.fileName || "-")}</span>
           </div>
         </div>
@@ -1560,12 +1906,16 @@ function sample(){
   return s;
 }
 
-function renderAll(){renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderMatches();renderMaterials();updateSyncStatus();}
+function renderAll(){ensureYears();migrateYearFields();renderYearSelects();bindYearSwitch();renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderPlayerStats();renderMatches();renderMaterials();updateSyncStatus();}
 
 document.addEventListener("DOMContentLoaded",()=>{
   if(!sessions.length){sessions=[sample()];saveAll();}
   if(!Array.isArray(masters.players)) masters.players = [];
   if(!Array.isArray(materials)) materials = [];
+  ensureYears();
+  migrateYearFields();
+  applyYearMaster(activeYear);
+  saveMasters();
 
   refreshMastersUI();
 
@@ -1576,6 +1926,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   el("homeSearchBtn").onclick=()=>page("searchPage");
   el("homeResultsBtn").onclick=()=>page("resultsPage");
   if(el("homeMaterialsBtn")) el("homeMaterialsBtn").onclick=()=>page("materialsPage");
+  bindYearSwitch();
 
   el("settingsOpenBtn").onclick=()=>page("settingsPage");
   el("syncOpenBtn").onclick=openSync;
@@ -1625,6 +1976,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
 
   el("saveMastersBtn").onclick=readMastersUI;
+  if(el("rolloverYearBtn")) el("rolloverYearBtn").onclick=rolloverYear;
   el("surfaceType").onchange=()=>{
     masters.surfaceType=el("surfaceType").value;
     saveMasters();
@@ -1650,6 +2002,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
   el("trmCount").onchange=()=>{ renderScoreInputs(); renderStarterAssignments(); };
   el("formationInput").oninput=()=>renderStarterAssignments();
+  if(el("addGoalEventBtn")) el("addGoalEventBtn").onclick=addGoalEvent;
   el("partColor").oninput=(e)=>changePartColor(e.target.value);
 
   // 資料

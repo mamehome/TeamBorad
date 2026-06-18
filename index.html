@@ -54,7 +54,7 @@
       <div>
         <p class="small">Season</p>
         <h2>年度</h2>
-        <p>選択した年度ごとに、指導案・試合結果・資料・選手成績を分けて管理します。</p>
+        <p>選択した年度ごとに、試合結果・資料・選手成績・設定マスタを分けて管理します。</p>
       </div>
       <label>表示年度
         <select id="activeYearSelect"></select>
@@ -498,10 +498,14 @@
         <textarea id="masterAges" rows="12"></textarea>
       </section>
 
-      <section class="panel master-card">
+      <section class="panel master-card year-master-card">
         <h3>年度管理</h3>
         <p>例：2026年度、2027年度。TOP画面で表示年度を切り替えます。</p>
         <textarea id="masterYears" rows="8"></textarea>
+        <div class="year-rollover-box">
+          <button id="rolloverYearBtn" class="primary" type="button">年度更新</button>
+          <p>現在の年度の選手管理・マスタ管理をコピーして、次年度を作成します。試合結果と資料はコピーしません。</p>
+        </div>
       </section>
 
       <section class="panel master-card player-master-card">

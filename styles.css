@@ -1788,3 +1788,162 @@ body[data-surface="futsal"] #board{
 .sub-grid select option:disabled{
   color:#9ca3af;
 }
+
+
+/* TeamBoard v26 player stats */
+.match-events-panel{
+  background:rgba(248,251,248,.94);
+  border:1px solid rgba(16,45,28,.12);
+  border-radius:24px;
+  padding:16px;
+}
+.goal-event-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.goal-event-row{
+  display:grid;
+  grid-template-columns:minmax(90px,.7fr) minmax(80px,.6fr) minmax(150px,1fr) minmax(150px,1fr) minmax(140px,1fr) auto;
+  gap:8px;
+  align-items:end;
+  background:#fff;
+  border:1px solid rgba(16,45,28,.12);
+  border-radius:18px;
+  padding:10px;
+}
+.goal-events-block{
+  margin-top:12px;
+  padding:12px;
+  border:1px solid rgba(16,45,28,.12);
+  border-radius:18px;
+  background:rgba(248,251,248,.9);
+}
+.goal-events-block h4{
+  margin:0 0 8px;
+  color:#102d1c;
+}
+.goal-event-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.goal-event-chip{
+  display:inline-flex;
+  align-items:center;
+  padding:8px 10px;
+  border-radius:999px;
+  background:#e9f6ed;
+  color:#0f6f37;
+  font-weight:800;
+  font-size:12px;
+}
+.player-stats-list{
+  margin:0 0 22px;
+}
+.player-stats-table{
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(16,45,28,.12);
+  border-radius:22px;
+  overflow:hidden;
+}
+.player-stats-head,
+.player-stats-row{
+  display:grid;
+  grid-template-columns:1.5fr .5fr .5fr 2.2fr;
+  gap:10px;
+  align-items:center;
+  padding:12px 14px;
+}
+.player-stats-head{
+  background:#102d1c;
+  color:#fff;
+  font-weight:900;
+}
+.player-stats-row{
+  border-top:1px solid rgba(16,45,28,.10);
+}
+.player-name-cell{
+  font-weight:900;
+  color:#102d1c;
+}
+.playtime-cell{
+  font-size:12px;
+  color:#5f6e65;
+  line-height:1.45;
+}
+@media (max-width: 860px){
+  .goal-event-row{
+    grid-template-columns:1fr;
+  }
+  .player-stats-head{
+    display:none;
+  }
+  .player-stats-row{
+    grid-template-columns:1fr 1fr 1fr;
+  }
+  .player-stats-row .playtime-cell{
+    grid-column:1 / -1;
+  }
+}
+
+
+/* TeamBoard v27 yearly data separation */
+.year-switch-panel{
+  position:relative;
+  margin:18px 0;
+  padding:18px;
+  border-radius:26px;
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(16,45,28,.12);
+  display:grid;
+  grid-template-columns:1fr minmax(180px,260px);
+  gap:18px;
+  align-items:end;
+  box-shadow:0 16px 40px rgba(16,45,28,.08);
+}
+.year-switch-panel h2{
+  margin:2px 0 6px;
+  color:#102d1c;
+}
+.year-switch-panel p{
+  margin:0;
+  color:#5f6e65;
+}
+.year-switch-panel label{
+  font-weight:900;
+  color:#102d1c;
+}
+.year-switch-panel select{
+  width:100%;
+  margin-top:8px;
+  min-height:44px;
+  border-radius:14px;
+  border:1px solid rgba(16,45,28,.18);
+  padding:0 12px;
+  background:#fff;
+}
+@media (max-width:760px){
+  .year-switch-panel{
+    grid-template-columns:1fr;
+  }
+}
+
+
+/* TeamBoard v30 year rollover */
+.year-rollover-box{
+  margin-top:12px;
+  padding:12px;
+  border-radius:16px;
+  background:#f1f8f3;
+  border:1px solid rgba(15,111,55,.18);
+}
+.year-rollover-box p{
+  margin:8px 0 0;
+  font-size:12px;
+  line-height:1.5;
+  color:#4f6257;
+}
+.year-rollover-box .primary{
+  width:100%;
+}
