@@ -4,6 +4,7 @@ const MASTER_KEY = "teamboard-v5-masters";
 const MATCH_KEY = "teamboard-v9-matches";
 const MATERIAL_KEY = "teamboard-v21-materials";
 const SYNC_KEY = "teamboard-v5-sync";
+const YEAR_KEY = "teamboard-v24-active-year";
 const PARTS = [["wup","W-up"],["tr1","TR1"],["tr2","TR2"],["game","Game"]];
 
 const defaultMasters = {
@@ -22,6 +23,7 @@ let materials = loadLocal(MATERIAL_KEY, []);
 let masters = loadLocal(MASTER_KEY, defaultMasters);
 if(!Array.isArray(masters.players)) masters.players = [];
 let syncSetting = loadLocal(SYNC_KEY, {gasUrl:"", teamKey:""});
+let activeYear = loadLocal(YEAR_KEY, currentFiscalYear());
 let draft = emptySession();
 let activePart = "wup";
 let activeTool = "attack";
@@ -38,8 +40,75 @@ function saveMaterials(){saveLocal(MATERIAL_KEY, materials);}
 function saveMasters(){saveLocal(MASTER_KEY, masters);}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function clone(o){return JSON.parse(JSON.stringify(o));}
+
+function currentFiscalYear(){
+  const d = new Date();
+  const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+  return String(y);
+}
+function yearLabel(y=activeYear){return `${y}年度`;}
+function fiscalYearOptions(){
+  const now = Number(currentFiscalYear());
+  const set = new Set([String(now-2), String(now-1), String(now), String(now+1), String(now+2), String(activeYear)]);
+  [...sessions, ...matches, ...materials].forEach(x=>{ if(x && x.fiscalYear) set.add(String(x.fiscalYear)); });
+  return [...set].sort((a,b)=>Number(b)-Number(a));
+}
+function ensureFiscalYears(){
+  const fallback = String(activeYear || currentFiscalYear());
+  sessions.forEach(s=>{ if(!s.fiscalYear) s.fiscalYear = fallback; });
+  matches.forEach(m=>{ if(!m.fiscalYear) m.fiscalYear = fallback; });
+  materials.forEach(m=>{ if(!m.fiscalYear) m.fiscalYear = fallback; });
+  saveAll(); saveMatches(); if(typeof saveMaterials === "function") saveMaterials();
+}
+function sameYear(x){return String(x.fiscalYear || activeYear) === String(activeYear);}
+function setActiveYear(y){
+  activeYear = String(y || currentFiscalYear());
+  saveLocal(YEAR_KEY, activeYear);
+  refreshYearSelector();
+  renderAll();
+  toast(yearLabel(activeYear) + "に切り替えました");
+}
+function refreshYearSelector(){
+  const s = el("yearSelector");
+  if(!s) return;
+  const years = fiscalYearOptions();
+  s.innerHTML = years.map(y=>`<option value="${esc(y)}">${esc(yearLabel(y))}</option>`).join("");
+  s.value = String(activeYear);
+  const label = yearLabel(activeYear);
+  if(el("homeYearBadge")) el("homeYearBadge").textContent = label;
+  if(el("matchYearBadge")) el("matchYearBadge").textContent = label;
+  if(el("materialYearBadge")) el("materialYearBadge").textContent = label;
+}
+function promptTargetYear(defaultYear = activeYear){
+  const raw = prompt("コピー先の年度を入力してください（例：2027）", String(defaultYear));
+  if(!raw) return "";
+  const y = raw.replace(/[^\d]/g,"").slice(0,4);
+  if(!y || y.length < 4){
+    toast("年度は西暦4桁で入力してください");
+    return "";
+  }
+  return y;
+}
+function moveSessionToYear(id){
+  const s = sessions.find(x=>x.id===id);
+  if(!s) return;
+  const target = promptTargetYear(Number(activeYear)+1);
+  if(!target) return;
+  const c = clone(s);
+  c.id = uid();
+  c.fiscalYear = String(target);
+  c.title = (c.title || "無題の指導案") + `（${yearLabel(target)}へコピー）`;
+  c.createdAt = new Date().toISOString();
+  c.updatedAt = new Date().toISOString();
+  sessions.unshift(c);
+  saveAll();
+  refreshYearSelector();
+  renderAll();
+  toast(yearLabel(target) + "へコピーしました");
+}
+
 function toast(msg){el("toast").textContent=msg;el("toast").classList.add("show");setTimeout(()=>el("toast").classList.remove("show"),1800);}
-function emptySession(){const parts={};PARTS.forEach(([k])=>parts[k]={objects:[],organize:"",rules:"",coaching:""});return {id:uid(),title:"",age:"U-12",category:"攻撃",timePlan:"60分",tags:"",parts,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};}
+function emptySession(){const parts={};PARTS.forEach(([k])=>parts[k]={objects:[],organize:"",rules:"",coaching:""});return {id:uid(),fiscalYear:String(activeYear),title:"",age:"U-12",category:"攻撃",timePlan:"60分",tags:"",parts,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};}
 function splitTags(s){return (s||"").split(/[,\s、]+/).map(x=>x.trim()).filter(Boolean);}
 function esc(s=""){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");}
 function page(id){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));el(id).classList.add("active");document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.page===id));window.scrollTo({top:0,behavior:"smooth"});}
@@ -111,7 +180,9 @@ function readMastersUI(){
   masters.surfaceType = el("surfaceType").value || "soccer";
   if(!Array.isArray(masters.players)) masters.players = [];
   saveMasters();
+  ensureFiscalYears();
   refreshMastersUI();
+  refreshYearSelector();
   renderTags();
   toast("マスタを保存しました");
 }
@@ -158,8 +229,21 @@ function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function rotNorm(v){ return ((v % 360) + 360) % 360; }
 
 function playerShape(x,y,color,label,text="#fff",s=1){
-  const r = 24*s, sw = Math.max(2, 5*s), fs = Math.max(12, 20*s);
-  return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" stroke="#fff" stroke-width="${sw}"/><text x="${x}" y="${y + 0.3*fs}" text-anchor="middle" font-size="${fs}" font-weight="900" fill="${text}">${label}</text>`;
+  const r = 26*s;
+  const sw = Math.max(2,4*s);
+  const arrowY = y - 39*s;
+  return `<g>
+    <circle cx="${x}" cy="${y}" r="${r}" fill="${color}" stroke="#fff" stroke-width="${sw}"/>
+    <circle cx="${x}" cy="${y-4*s}" r="${9*s}" fill="#fff"/>
+    <path d="M ${x-14*s} ${y+11*s}
+             Q ${x} ${y+31*s} ${x+14*s} ${y+11*s}
+             Q ${x+17*s} ${y+2*s} ${x+9*s} ${y+2*s}
+             Q ${x} ${y+11*s} ${x-9*s} ${y+2*s}
+             Q ${x-17*s} ${y+2*s} ${x-14*s} ${y+11*s} Z" fill="#fff"/>
+    <rect x="${x-34*s}" y="${y+8*s}" width="${23*s}" height="${9*s}" rx="${4.5*s}" fill="#fff" transform="rotate(-32 ${x-22*s} ${y+12*s})"/>
+    <rect x="${x+11*s}" y="${y+8*s}" width="${23*s}" height="${9*s}" rx="${4.5*s}" fill="#fff" transform="rotate(32 ${x+22*s} ${y+12*s})"/>
+    <path d="M ${x} ${arrowY} L ${x-8*s} ${arrowY+12*s} Q ${x} ${arrowY+8*s} ${x+8*s} ${arrowY+12*s} Z" fill="#fff"/>
+  </g>`;
 }
 function coneShape(x,y,s=1){
   const h = 28*s, w = 24*s, sw = Math.max(2,4*s), lw = 13*s;
@@ -192,22 +276,23 @@ function goalFrameShape(x,y,r=0,s=1){
   </g>`;
 }
 function soccerPenaltyShape(x,y,r=0,s=1){
-  const swMain = Math.max(3,7*s), swSub = Math.max(2,5*s);
-  const goalLineX = x - 110*s;
-  const boxDepth = 182*s;
-  const boxHalfH = 132*s;
-  const goalAreaDepth = 62*s;
-  const goalAreaHalfH = 64*s;
-  const spotX = goalLineX + 80*s;
-  const arcR = 64*s;
+  const col = arguments.length > 4 ? arguments[4] : "#fff";
+  const swMain = Math.max(3,8*s), swSub = Math.max(2,6*s);
+  const goalLineY = y - 128*s;
+  const boxW = 270*s;
+  const boxH = 184*s;
+  const boxX = x - boxW/2;
+  const smallW = 118*s;
+  const smallH = 60*s;
+  const smallX = x - smallW/2;
+  const spotY = goalLineY + 105*s;
   return `<g transform="rotate(${r} ${x} ${y})">
-    <line x1="${goalLineX}" y1="${y-boxHalfH}" x2="${goalLineX}" y2="${y+boxHalfH}" stroke="#fff" stroke-width="${swMain}" stroke-linecap="round"/>
-    <path d="M ${goalLineX} ${y-boxHalfH} L ${goalLineX+boxDepth} ${y-boxHalfH} L ${goalLineX+boxDepth} ${y+boxHalfH} L ${goalLineX} ${y+boxHalfH}" fill="none" stroke="#fff" stroke-width="${swMain}" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M ${goalLineX} ${y-goalAreaHalfH} L ${goalLineX+goalAreaDepth} ${y-goalAreaHalfH} L ${goalLineX+goalAreaDepth} ${y+goalAreaHalfH} L ${goalLineX} ${y+goalAreaHalfH}" fill="none" stroke="#fff" stroke-width="${swSub}" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${spotX}" cy="${y}" r="${Math.max(4,5*s)}" fill="#fff"/>
-    <path d="M ${spotX+arcR*Math.cos(-0.92)} ${y+arcR*Math.sin(-0.92)}
-             A ${arcR} ${arcR} 0 0 1 ${spotX+arcR*Math.cos(0.92)} ${y+arcR*Math.sin(0.92)}"
-          fill="none" stroke="#fff" stroke-width="${swSub}" stroke-linecap="round"/>
+    <rect x="${boxX}" y="${goalLineY}" width="${boxW}" height="${boxH}" rx="${4*s}" fill="none" stroke="${col}" stroke-width="${swMain}" stroke-linejoin="round"/>
+    <path d="M ${smallX} ${goalLineY} L ${smallX} ${goalLineY+smallH} L ${smallX+smallW} ${goalLineY+smallH} L ${smallX+smallW} ${goalLineY}"
+          fill="none" stroke="${col}" stroke-width="${swSub}" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${x}" cy="${spotY}" r="${Math.max(4,6*s)}" fill="${col}"/>
+    <path d="M ${x-62*s} ${goalLineY+boxH} A ${74*s} ${74*s} 0 0 0 ${x+62*s} ${goalLineY+boxH}"
+          fill="none" stroke="${col}" stroke-width="${swSub}" stroke-linecap="round"/>
   </g>`;
 }
 function futsalGoalAreaShape(x,y,r=0,s=1){
@@ -224,28 +309,22 @@ function futsalGoalAreaShape(x,y,r=0,s=1){
     <circle cx="${goalLineX+60*s}" cy="${y}" r="${Math.max(3,4*s)}" fill="#fff"/>
   </g>`;
 }
-function courtAreaShape(x,y,r=0,s=1){
+function courtAreaShape(x,y,r=0,s=1,col="#fff"){
   const type = masters.surfaceType || "soccer";
-  return type === "futsal" ? futsalGoalAreaShape(x,y,r,s) : soccerPenaltyShape(x,y,r,s);
+  return type === "futsal" ? futsalGoalAreaShape(x,y,r,s) : soccerPenaltyShape(x,y,r,s,col);
 }
 function ballShape(x,y,s=1){
-  const r = 16*s, sw = Math.max(1.8,3*s);
-  const p = [
-    [0,-6.5],[6,-2],[3.7,5],[-3.7,5],[-6,-2]
-  ].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
-  const top = [[0,-13],[5,-9],[3,-3],[-3,-3],[-5,-9]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
-  const left = [[-12,-4],[-7,-1],[-8,5],[-13,7],[-15,1]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
-  const right = [[12,-4],[15,1],[13,7],[8,5],[7,-1]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
-  const lowerL = [[-6,9],[-2,6],[2,9],[0,14],[-6,14]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
-  const lowerR = [[6,9],[0,14],[6,14],[11,10],[10,5]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
+  const r = 17*s, sw = Math.max(2,3*s);
+  const pent = [[0,-9],[8,-3],[5,7],[-5,7],[-8,-3]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
   return `<g>
-    <circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#101010" stroke-width="${sw}"/>
-    <polygon points="${p}" fill="#111"/>
-    <polygon points="${top}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
-    <polygon points="${left}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
-    <polygon points="${right}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
-    <polygon points="${lowerL}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
-    <polygon points="${lowerR}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
+    <circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#111" stroke-width="${sw}"/>
+    <polygon points="${pent}" fill="#111"/>
+    <path d="M ${x-8*s} ${y-3*s} L ${x-15*s} ${y-8*s}
+             M ${x+8*s} ${y-3*s} L ${x+15*s} ${y-8*s}
+             M ${x+5*s} ${y+7*s} L ${x+8*s} ${y+15*s}
+             M ${x-5*s} ${y+7*s} L ${x-8*s} ${y+15*s}
+             M ${x} ${y-9*s} L ${x} ${y-16*s}"
+          stroke="#111" stroke-width="${Math.max(1.5,2*s)}" stroke-linecap="round"/>
   </g>`;
 }
 function textShape(x,y,text,s=1){
@@ -258,18 +337,35 @@ function textShape(x,y,text,s=1){
     <text x="${x}" y="${y + fs*0.18}" text-anchor="middle" font-size="${fs}" font-weight="900" fill="#fff">${safe}</text>
   </g>`;
 }
+
+function shapeCircleShape(x,y,s=1,col="#fff"){
+  return `<circle cx="${x}" cy="${y}" r="${52*s}" fill="none" stroke="${col}" stroke-width="${Math.max(4,8*s)}"/>`;
+}
+function horizontalLineShape(x,y,r=0,s=1,col="#fff"){
+  const len=150*s;
+  return `<g transform="rotate(${r} ${x} ${y})"><line x1="${x-len/2}" y1="${y}" x2="${x+len/2}" y2="${y}" stroke="${col}" stroke-width="${Math.max(4,9*s)}" stroke-linecap="round"/></g>`;
+}
+function verticalLineShape(x,y,r=0,s=1,col="#fff"){
+  const len=150*s;
+  return `<g transform="rotate(${r} ${x} ${y})"><line x1="${x}" y1="${y-len/2}" x2="${x}" y2="${y+len/2}" stroke="${col}" stroke-width="${Math.max(4,9*s)}" stroke-linecap="round"/></g>`;
+}
+
 function shapeSvg(o){
   ensureObjectDefaults(o);
   const s = o.s || 1;
-  if(o.type==="attack") return playerShape(o.x,o.y,"#e53935","A","#fff",s);
-  if(o.type==="defense") return playerShape(o.x,o.y,"#1e88e5","D","#fff",s);
-  if(o.type==="free") return playerShape(o.x,o.y,"#fdd835","F","#17211b",s);
+  if(o.type==="attack") return playerShape(o.x,o.y,o.color||"#e62922","A","#fff",s);
+  if(o.type==="defense") return playerShape(o.x,o.y,o.color||"#1669df","D","#fff",s);
+  if(o.type==="free") return playerShape(o.x,o.y,o.color||"#219529","F","#fff",s);
   if(o.type==="cone") return coneShape(o.x,o.y,s);
   if(o.type==="marker") return markerShape(o.x,o.y,s);
   if(o.type==="centerLine") return centerLineShape(o.x,o.y,o.r||0,s);
   if(o.type==="centerCircle") return centerCircleShape(o.x,o.y,o.r||0,s);
-  if(o.type==="courtArea") return courtAreaShape(o.x,o.y,o.r||0,s);
+  if(o.type==="courtArea") return courtAreaShape(o.x,o.y,o.r||0,s,o.color||"#fff");
   if(o.type==="goalFrame") return goalFrameShape(o.x,o.y,o.r||0,s);
+  
+  if(o.type==="shapeCircle") return shapeCircleShape(o.x,o.y,s,o.color||"#fff");
+  if(o.type==="horizontalLine") return horizontalLineShape(o.x,o.y,o.r||0,s,o.color||"#fff");
+  if(o.type==="verticalLine") return verticalLineShape(o.x,o.y,o.r||0,s,o.color||"#fff");
   if(o.type==="ball") return ballShape(o.x,o.y,s);
   if(o.type==="text") return textShape(o.x,o.y,o.text||"テキスト",s);
   if(o.type==="line") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="#fff" stroke-width="${Math.max(4, 8*(o.s||1))}" stroke-linecap="round"/>`;
@@ -288,7 +384,7 @@ function objectBounds(o){
   }
   const boxes = {
     attack:[56,56], defense:[56,56], free:[56,56], cone:[58,58], marker:[40,40], ball:[34,34],
-    centerLine:[80,540*s], centerCircle:[170*s,170*s], goalFrame:[142*s,84*s], courtArea:[300*s,310*s], ball:[44*s,44*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
+    centerLine:[80,540*s], centerCircle:[170*s,170*s], goalFrame:[142*s,84*s], courtArea:[300*s,310*s], shapeCircle:[120*s,120*s], horizontalLine:[170*s,40*s], verticalLine:[40*s,170*s], ball:[44*s,44*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
   };
   const wh = boxes[o.type] || [70*s,70*s];
   return {x:o.x - wh[0]/2, y:o.y - wh[1]/2, w:wh[0], h:wh[1]};
@@ -326,6 +422,7 @@ function selectedLabel(o){
 function updateSelectionInfo(){
   const o = getSelectedObject();
   if(el("selectedInfo")) el("selectedInfo").textContent = selectedLabel(o);
+  if(o && el("partColor") && o.color){ el("partColor").value = o.color; }
   if(el("boardHintLabel")){
     el("boardHintLabel").textContent = o
       ? "ドラッグで移動 / サイズ変更 / 複製 / 削除 / 回転"
@@ -352,7 +449,7 @@ function toolLabelName(t){
     centerLine:"センターライン", centerCircle:"センターサークル",
     courtArea: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
     goalFrame:"ゴール枠", goal:"ゴール枠", penalty: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
-    ball:"ボール", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印"
+    ball:"ボール", shapeCircle:"円", horizontalLine:"横線", verticalLine:"縦線", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印"
   };
   return names[t] || t;
 }
@@ -366,6 +463,10 @@ function renderToolPalette(){
 }
 function setTool(t){
   activeTool=t; interaction=null;
+  if(el("partColor")){
+    const defaults={attack:"#e62922",defense:"#1669df",free:"#219529",cone:"#ff7a00",marker:"#ffcc00",line:"#ffffff",arrow:"#ffffff",dash:"#ffffff",courtArea:"#ffffff",goalFrame:"#ffffff",centerLine:"#ffffff",centerCircle:"#ffffff",shapeCircle:"#ffffff",horizontalLine:"#ffffff",verticalLine:"#ffffff",text:"#ffffff",ball:"#ffffff"};
+    el("partColor").value = defaults[t] || "#ffffff";
+  }
   document.querySelectorAll(".tool").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));
   el("toolName").textContent=toolLabelName(t);
 }
@@ -395,9 +496,9 @@ function createObjectAt(p){
   if(activeTool==="text"){
     const value = prompt("挿入するテキストを入力してください", "ポイント");
     if(!value) return null;
-    obj = {id:uid(), type:"text", x:p.x, y:p.y, text:value, r:currentRotation, s:1};
+    obj = {id:uid(), type:"text", x:p.x, y:p.y, text:value, r:currentRotation, s:1, color:el("partColor")?el("partColor").value:"#ffffff"};
   }else{
-    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1};
+    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1, color:el("partColor")?el("partColor").value:"#ffffff"};
   }
   ensureObjectDefaults(obj);
   currentObjects().push(obj);
@@ -559,8 +660,8 @@ function readMeta(){draft.title=el("planTitle").value.trim();draft.age=el("age")
 function fillMeta(){el("planTitle").value=draft.title||"";el("age").value=draft.age||masters.ages[0];el("category").value=draft.category||masters.categories[0];el("timePlan").value=draft.timePlan||masters.times[0];el("tags").value=draft.tags||"";}
 function newSession(){draft=emptySession();activePart="wup";selectedObjectId=null;interaction=null;fillMeta();setPart("wup");el("editorMode").textContent="指導案作成ページ";page("createPage");}
 function editSession(id){const s=sessions.find(x=>x.id===id);if(!s)return;draft=clone(s);activePart="wup";selectedObjectId=null;interaction=null;fillMeta();setPart("wup");el("editorMode").textContent="指導案編集ページ";page("createPage");}
-function saveDraft(){saveNotes();readMeta();if(!draft.title){toast("タイトルを入力してください");return;}const i=sessions.findIndex(x=>x.id===draft.id);if(i>=0)sessions[i]=clone(draft);else sessions.unshift(clone(draft));saveAll();renderAll();page("homePage");toast("保存しました");}
-function copySession(id){const s=sessions.find(x=>x.id===id);if(!s)return;const c=clone(s);c.id=uid();c.title=(c.title||"無題")+" コピー";c.createdAt=new Date().toISOString();c.updatedAt=new Date().toISOString();sessions.unshift(c);saveAll();renderAll();toast("コピーしました");}
+function saveDraft(){saveNotes();readMeta();if(!draft.title){toast("タイトルを入力してください");return;}draft.fiscalYear = draft.fiscalYear || String(activeYear); const i=sessions.findIndex(x=>x.id===draft.id);if(i>=0)sessions[i]=clone(draft);else sessions.unshift(clone(draft));saveAll();renderAll();page("homePage");toast("保存しました");}
+function copySession(id){const s=sessions.find(x=>x.id===id);if(!s)return;const c=clone(s);c.id=uid();c.title=(c.title||"無題")+" コピー";c.fiscalYear=String(activeYear);c.createdAt=new Date().toISOString();c.updatedAt=new Date().toISOString();sessions.unshift(c);saveAll();renderAll();toast("コピーしました");}
 function deleteSession(id){if(!confirm("削除しますか？"))return;sessions=sessions.filter(x=>x.id!==id);saveAll();renderAll();}
 function hasPart(p){return (p.objects&&p.objects.length)||p.organize||p.rules||p.coaching;}
 function firstPart(s){return PARTS.find(([k])=>s.parts[k].objects.length)?.[0]||"wup";}
@@ -570,20 +671,20 @@ function cardHtml(s, compact=false){
   return `<article class="card" data-id="${s.id}">
     <svg class="preview-svg" viewBox="0 0 1000 640">${pitchBase()}${objectsSvg((s.parts[fp].objects||[]).slice(0,24))}</svg>
     <div class="card-body">
-      <div class="badges"><span class="badge">${esc(s.age||"")}</span><span class="badge">${esc(s.category||"")}</span>${splitTags(s.tags).slice(0,compact?2:5).map(t=>`<span class="badge">#${esc(t)}</span>`).join("")}</div>
+      <div class="badges"><span class="card-year-label">${esc(yearLabel(s.fiscalYear || activeYear))}</span><span class="badge">${esc(s.age||"")}</span><span class="badge">${esc(s.category||"")}</span>${splitTags(s.tags).slice(0,compact?2:5).map(t=>`<span class="badge">#${esc(t)}</span>`).join("")}</div>
       <h3>${esc(s.title||"無題の指導案")}</h3>
       <div class="part-badges">${PARTS.map(([k,n])=>`<span class="badge part-badge">${n}${hasPart(s.parts[k])?" ✓":""}</span>`).join("")}</div>
-      <div class="card-actions"><button data-act="preview">プレビュー</button><button data-act="edit">編集</button><button data-act="copy">コピー</button><button class="danger" data-act="delete">削除</button></div>
+      <div class="card-actions"><button data-act="preview">プレビュー</button><button data-act="edit">編集</button><button data-act="copy">コピー</button><button data-act="yearMove">年度移動</button><button class="danger" data-act="delete">削除</button></div>
     </div>
   </article>`;
 }
 
 function bindCardActions(root=document){
-  root.querySelectorAll("[data-act]").forEach(b=>{b.onclick=()=>{const id=b.closest("[data-id]").dataset.id;const act=b.dataset.act;if(act==="preview")preview(id);if(act==="edit")editSession(id);if(act==="copy")copySession(id);if(act==="delete")deleteSession(id);};});
+  root.querySelectorAll("[data-act]").forEach(b=>{b.onclick=()=>{const id=b.closest("[data-id]").dataset.id;const act=b.dataset.act;if(act==="preview")preview(id);if(act==="edit")editSession(id);if(act==="copy")copySession(id);if(act==="yearMove")moveSessionToYear(id);if(act==="delete")deleteSession(id);};});
 }
 
 function renderRecent(){
-  const recent = sessions.slice(0,4);
+  const recent = sessions.filter(s=>sameYear(s)).slice(0,4);
   el("recentCards").innerHTML = recent.length ? recent.map(s=>cardHtml(s,true)).join("") : `<div class="empty"><h3>まだ指導案がありません</h3><p>新規作成から始めてください。</p></div>`;
   bindCardActions(el("recentCards"));
 }
@@ -593,7 +694,7 @@ function filteredSessions(){
   const pf=el("partFilter").value;
   const cf=el("categoryFilter").value;
   const tf=el("tagFilter").value.toLowerCase().trim();
-  return sessions.filter(s=>{
+  return sessions.filter(s=>sameYear(s)).filter(s=>{
     const parts=pf?[s.parts[pf]]:Object.values(s.parts);
     const text=[s.title,s.age,s.category,s.timePlan,s.tags,...parts.flatMap(p=>[p.organize,p.rules,p.coaching])].join(" ").toLowerCase();
     const tags=splitTags(s.tags).map(t=>t.toLowerCase());
@@ -624,9 +725,9 @@ function preview(id){
 function updateSyncStatus(){el("syncStatus").textContent=(syncSetting.gasUrl&&syncSetting.teamKey)?"同期設定あり：右上の同期からDrive保存・読み込みできます":"Drive未接続：端末内に保存中";}
 function openSync(){el("gasUrl").value=syncSetting.gasUrl||"";el("teamKey").value=syncSetting.teamKey||"";el("syncDialog").showModal();}
 function saveSyncSetting(){syncSetting={gasUrl:el("gasUrl").value.trim(),teamKey:el("teamKey").value.trim()};saveLocal(SYNC_KEY,syncSetting);updateSyncStatus();toast("同期設定を保存しました");}
-async function pushDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}const payload={action:"save",teamKey:syncSetting.teamKey,data:{version:21,updatedAt:new Date().toISOString(),sessions,masters,matches,materials}};try{const res=await fetch(syncSetting.gasUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});const json=await res.json();if(!json.ok)throw new Error(json.error||"保存失敗");toast("Driveへ保存しました");}catch(e){alert("Drive保存に失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
-async function pullDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}if(sessions.length&&!confirm("Driveのデータでこの端末のデータを置き換えますか？"))return;try{const url=syncSetting.gasUrl+"?action=load&teamKey="+encodeURIComponent(syncSetting.teamKey);const res=await fetch(url);const json=await res.json();if(!json.ok)throw new Error(json.error||"読み込み失敗");sessions=(json.data&&json.data.sessions)||[];matches=(json.data&&json.data.matches)||[];materials=(json.data&&json.data.materials)||[];masters={...defaultMasters, ...((json.data&&json.data.masters)||masters)};saveAll();saveMatches();saveMaterials();saveMasters();refreshMastersUI();renderAll();toast("Driveから読み込みました");}catch(e){alert("Drive読み込みに失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
-function downloadJson(){const blob=new Blob([JSON.stringify({version:21,updatedAt:new Date().toISOString(),sessions,masters,matches,materials},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="TeamBoard-data.json";a.click();URL.revokeObjectURL(a.href);}
+async function pushDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}const payload={action:"save",teamKey:syncSetting.teamKey,data:{version:21,updatedAt:new Date().toISOString(),sessions,masters,matches,materials,activeYear}};try{const res=await fetch(syncSetting.gasUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});const json=await res.json();if(!json.ok)throw new Error(json.error||"保存失敗");toast("Driveへ保存しました");}catch(e){alert("Drive保存に失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
+async function pullDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}if(sessions.length&&!confirm("Driveのデータでこの端末のデータを置き換えますか？"))return;try{const url=syncSetting.gasUrl+"?action=load&teamKey="+encodeURIComponent(syncSetting.teamKey);const res=await fetch(url);const json=await res.json();if(!json.ok)throw new Error(json.error||"読み込み失敗");sessions=(json.data&&json.data.sessions)||[];matches=(json.data&&json.data.matches)||[];materials=(json.data&&json.data.materials)||[];masters={...defaultMasters, ...((json.data&&json.data.masters)||masters)}; if(json.data && json.data.activeYear) activeYear=String(json.data.activeYear);saveAll();saveMatches();saveMaterials();saveMasters();refreshMastersUI();renderAll();toast("Driveから読み込みました");}catch(e){alert("Drive読み込みに失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
+function downloadJson(){const blob=new Blob([JSON.stringify({version:21,updatedAt:new Date().toISOString(),sessions,masters,matches,materials,activeYear},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="TeamBoard-data.json";a.click();URL.revokeObjectURL(a.href);}
 
 
 
@@ -640,7 +741,8 @@ function num(id){
   return Math.max(0, Number(el(id).value || 0));
 }
 
-let starterSelectionState = {};
+let tb23MemberSelectionState = {};
+  tb23SubstitutionState = [];
 
 function getPlayers(){
   if(!Array.isArray(masters.players)) masters.players = [];
@@ -678,7 +780,7 @@ function addPlayerMaster(){
   masters.players.push({id:uid(), number, name});
   saveMasters();
   renderPlayerMasterList();
-  renderStarterAssignments();
+  tb23RenderMemberEditor();
   el("playerNumberInput").value = "";
   el("playerNameInput").value = "";
   toast("選手を登録しました");
@@ -725,7 +827,8 @@ function captureStarterStateFromDOM(){
   starterSelectionState = obj;
 }
 function setStarterStateFromSaved(starters){
-  starterSelectionState = {};
+  tb23MemberSelectionState = {};
+  tb23SubstitutionState = [];
   (starters || []).forEach(s=>{
     if(s && s.slotId) starterSelectionState[s.slotId] = s.playerId || "";
   });
@@ -893,7 +996,8 @@ function clearMatchForm(){
   el("trmCount").value = "3";
   el("formationInput").value = "4-4-2";
   el("matchMemo").value = "";
-  starterSelectionState = {};
+  tb23MemberSelectionState = {};
+  tb23SubstitutionState = [];
   renderScoreInputs({scores:[{label:"前半",own:0,opp:0},{label:"後半",own:0,opp:0}]});
   renderStarterAssignments();
 }
@@ -917,6 +1021,7 @@ function readMatchForm(){
   const totalOpp = scores.reduce((a,b)=>a+Number(b.opp||0),0);
   return {
     id: el("matchId").value || uid(),
+    fiscalYear: String(activeYear),
     matchType: el("matchType").value || "official",
     name: el("matchName").value.trim() || (el("matchType").value === "trm" ? "TRM" : "公式戦"),
     category: el("matchCategory").value || "",
@@ -931,7 +1036,9 @@ function readMatchForm(){
     totalOwn,
     totalOpp,
     formation: el("formationInput").value.trim() || "4-4-2",
-    starters: collectStartersFromState(),
+    memberSets: tb23CollectMemberSets(),
+    starters: tb23StartersForSet("starter"),
+    substitutions: clone(tb23SubstitutionState),
     videoUrl: el("videoUrl").value.trim(),
     memo: el("matchMemo").value.trim(),
     updatedAt: new Date().toISOString()
@@ -962,7 +1069,7 @@ function editMatch(id){
   el("trmCount").value = String(m.trmCount || 3);
   el("formationInput").value = m.formation || "4-4-2";
   el("matchMemo").value = m.memo || "";
-  setStarterStateFromSaved(m.starters || []);
+  tb23SetStateFromSaved(m.starters || [], m.memberSets || null, m.substitutions || []);
   const scores = m.scores?.length ? m.scores : [
     {label:"前半", own:m.firstOwn ?? 0, opp:m.firstOpp ?? 0},
     {label:"後半", own:m.secondOwn ?? 0, opp:m.secondOpp ?? 0}
@@ -1023,13 +1130,15 @@ function starterChips(match){
   return items.length ? `<div class="lineup-chip-row">${items.map(s => `<span class="lineup-chip">#${esc(s.number)} ${esc(s.name)}</span>`).join("")}</div>` : "";
 }
 function renderMatches(){
-  el("matchCountBadge").textContent = matches.length + "件";
-  el("matchList").innerHTML = matches.length ? matches.map(m => `
+  const yearMatches = matches.filter(m=>sameYear(m));
+  el("matchCountBadge").textContent = yearMatches.length + "件";
+  el("matchList").innerHTML = yearMatches.length ? yearMatches.map(m => `
     <article class="match-card" data-match-id="${m.id}">
       <div class="match-card-head">
         <div>
           <h3>${esc(m.name || "TRM")}${m.opponent ? ` vs ${esc(m.opponent)}` : ""}</h3>
           <div class="badges">
+            <span class="match-year-label">${esc(yearLabel(m.fiscalYear || activeYear))}</span>
             <span class="badge match-type-badge ${esc(m.matchType || "official")}">${m.matchType === "trm" ? "TRM" : "公式戦"}</span>
             <span class="badge">対象 ${esc(m.category || "-")}</span>
             ${m.opponent ? `<span class="badge">相手 ${esc(m.opponent)}</span>` : ""}
@@ -1044,8 +1153,8 @@ function renderMatches(){
       </div>
       ${(m.formation || "").trim() ? `<div class="match-lineup">
         <div><span class="lineup-formation-badge">${esc(m.formation)}</span></div>
-        ${miniFormationSVG(m)}
-        ${starterChips(m)}
+        ${tb23MiniFormation(m)}
+        ${starterChips(m)}${tb23SubChips(m)}
       </div>` : ""}
       ${m.videoUrl ? `<a class="video-link" href="${esc(m.videoUrl)}" target="_blank" rel="noopener noreferrer">動画を開く</a>` : ""}
       ${m.memo ? `<div class="match-memo">${esc(m.memo)}</div>` : ""}
@@ -1054,7 +1163,7 @@ function renderMatches(){
         <button class="danger" data-match-act="delete">削除</button>
       </div>
     </article>
-  `).join("") : `<div class="empty"><h3>まだ試合結果がありません</h3><p>試合名・スコア・スタメン・メモを入力して保存してください。</p></div>`;
+  `).join("") : `<div class="empty"><h3>この年度の試合結果はまだありません</h3><p>試合名・スコア・メンバー・メモを入力して保存してください。</p></div>`;
   document.querySelectorAll("[data-match-act]").forEach(b => {
     b.onclick = () => {
       const id = b.closest("[data-match-id]").dataset.matchId;
@@ -1134,6 +1243,7 @@ function readMaterialForm(){
   } : null);
   return {
     id: el("materialId").value || uid(),
+    fiscalYear: String(activeYear),
     title: el("materialTitle").value.trim() || (file ? file.fileName : "無題の資料"),
     category: el("materialCategory").value || "",
     date: el("materialDate").value || todayISO(),
@@ -1181,13 +1291,15 @@ function deleteMaterial(id){
 }
 function renderMaterials(){
   if(!el("materialCountBadge")) return;
-  el("materialCountBadge").textContent = materials.length + "件";
-  el("materialList").innerHTML = materials.length ? materials.map(m => `
+  const yearMaterials = materials.filter(m=>sameYear(m));
+  el("materialCountBadge").textContent = yearMaterials.length + "件";
+  el("materialList").innerHTML = yearMaterials.length ? yearMaterials.map(m => `
     <article class="material-card" data-material-id="${m.id}">
       <div class="material-card-head">
         <div>
           <h3>${esc(m.title || "無題の資料")}</h3>
           <div class="badges">
+            <span class="material-year-label">${esc(yearLabel(m.fiscalYear || activeYear))}</span>
             <span class="badge">対象 ${esc(m.category || "-")}</span>
             <span class="badge">${esc(m.date || "-")}</span>
             <span class="badge">${esc(m.fileName || "-")}</span>
@@ -1203,7 +1315,7 @@ function renderMaterials(){
         <button class="danger" data-material-act="delete">削除</button>
       </div>
     </article>
-  `).join("") : `<div class="empty"><h3>まだ資料がありません</h3><p>PDFやPowerPointを選択して保存してください。</p></div>`;
+  `).join("") : `<div class="empty"><h3>この年度の資料はまだありません</h3><p>PDFやPowerPointを選択して保存してください。</p></div>`;
   document.querySelectorAll("[data-material-act]").forEach(b => {
     b.onclick = () => {
       const id = b.closest("[data-material-id]").dataset.materialId;
@@ -1228,7 +1340,230 @@ function sample(){
   return s;
 }
 
-function renderAll(){renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderMatches();renderMaterials();updateSyncStatus();}
+function renderAll(){ensureFiscalYears();refreshYearSelector();renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderMatches();renderMaterials();updateSyncStatus();}
+
+
+/* TeamBoard v23 member editor override */
+let tb23MemberSelectionState = {};
+let tb23SubstitutionState = [];
+
+function tb23Players(){
+  if(!Array.isArray(masters.players)) masters.players = [];
+  return masters.players;
+}
+function tb23PlayerLabel(p){ return `#${p.number} ${p.name}`; }
+function tb23ParseFormation(v){
+  const nums = String(v || "").split(/[‐‑‒–—―ー－-]+/).map(x=>Number(x.trim())).filter(n=>Number.isFinite(n) && n > 0);
+  return nums.length ? nums : [4,4,2];
+}
+function tb23RoleNames(count){
+  if(count === 2) return ["DF","FW"];
+  if(count === 3) return ["DF","MF","FW"];
+  if(count === 4) return ["DF","MF","AM","FW"];
+  if(count === 5) return ["DF","DM","CM","AM","FW"];
+  return Array.from({length:count},(_,i)=>`L${i+1}`);
+}
+function tb23Slots(){
+  const lines = tb23ParseFormation(el("formationInput").value);
+  const roles = tb23RoleNames(lines.length);
+  const slots = [{slotId:"GK1", label:"GK"}];
+  lines.forEach((count, lineIdx)=>{
+    const role = roles[lineIdx] || `L${lineIdx+1}`;
+    for(let i=1;i<=count;i++) slots.push({slotId:`${role}${i}`, label:`${role}${i}`});
+  });
+  return slots;
+}
+function tb23SetDefs(){
+  if(el("matchType").value === "trm"){
+    const n = Math.max(3, Math.min(6, Number(el("trmCount").value || 3)));
+    return Array.from({length:n},(_,i)=>({key:`set${i+1}`,title:`${i+1}本目メンバー`,note:`TRM ${i+1}本目の出場メンバー`}));
+  }
+  return [{key:"starter",title:"スタメン設定",note:"公式戦の先発メンバー"}];
+}
+function tb23PlayerOptions(selected){
+  const players = [...tb23Players()].sort((a,b)=>Number(a.number)-Number(b.number));
+  return `<option value="">未選択</option>` + players.map(p=>`<option value="${p.id}" ${selected===p.id ? "selected" : ""}>${esc(tb23PlayerLabel(p))}</option>`).join("");
+}
+function tb23Capture(){
+  document.querySelectorAll("[data-member-slot]").forEach(sel=>{
+    const setKey = sel.dataset.memberSet;
+    const slotId = sel.dataset.memberSlot;
+    if(!tb23MemberSelectionState[setKey]) tb23MemberSelectionState[setKey] = {};
+    tb23MemberSelectionState[setKey][slotId] = sel.value || "";
+  });
+  const grouped = {};
+  document.querySelectorAll("[data-sub-field]").forEach(input=>{
+    const id = input.dataset.subId;
+    if(!grouped[id]) grouped[id] = {id};
+    grouped[id][input.dataset.subField] = input.value || "";
+  });
+  const ids = Array.from(document.querySelectorAll("[data-sub-id]")).map(x=>x.dataset.subId);
+  if(ids.length) tb23SubstitutionState = Array.from(new Set(ids)).map(id=>grouped[id] || tb23SubstitutionState.find(s=>s.id===id) || {id});
+}
+function tb23Coords(){
+  const lines = tb23ParseFormation(el("formationInput").value);
+  const rows = [1, ...lines];
+  const totalRows = rows.length;
+  const coords = [{slotId:"GK1", label:"GK", x:120, y:320}];
+  const roles = tb23RoleNames(lines.length);
+  lines.forEach((count,i)=>{
+    const x = totalRows === 1 ? 500 : 120 + ((i+1) * 760 / (totalRows-1));
+    for(let k=0;k<count;k++){
+      const y = count === 1 ? 320 : 100 + (k * (440 / (count-1)));
+      coords.push({slotId:`${roles[i]}${k+1}`, label:`${roles[i]}${k+1}`, x, y});
+    }
+  });
+  return coords;
+}
+function tb23MembersForSet(setKey){
+  const state = tb23MemberSelectionState[setKey] || {};
+  return tb23Coords().map(pos=>{
+    const p = tb23Players().find(x=>x.id === (state[pos.slotId] || ""));
+    return {...pos, playerId:p ? p.id : "", number:p ? p.number : "", name:p ? p.name : ""};
+  });
+}
+function tb23FormationSvg(members){
+  let stripes = "";
+  for(let x=0;x<1000;x+=100) stripes += `<rect x="${x}" y="0" width="50" height="640" fill="rgba(255,255,255,.05)"/>`;
+  const playersSvg = (members||[]).map(p=>`
+    <g transform="translate(${p.x},${p.y})">
+      <circle cx="0" cy="0" r="27" fill="${p.number ? "#ffffff" : "rgba(255,255,255,.22)"}" stroke="#102d1c" stroke-width="3"/>
+      <text x="0" y="7" text-anchor="middle" font-size="20" font-weight="900" fill="#102d1c">${esc(p.number || p.label)}</text>
+      <text x="0" y="48" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">${esc(p.name || "")}</text>
+    </g>
+  `).join("");
+  return `<svg viewBox="0 0 1000 640">
+    <rect x="0" y="0" width="1000" height="640" fill="#11813e"/>${stripes}
+    <rect x="24" y="24" width="952" height="592" rx="28" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <line x1="500" y1="24" x2="500" y2="616" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <circle cx="500" cy="320" r="80" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <rect x="24" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <rect x="820" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    ${playersSvg}
+  </svg>`;
+}
+function tb23RenderMemberSet(set){
+  const state = tb23MemberSelectionState[set.key] || {};
+  const rows = tb23Slots().map(slot=>`
+    <div class="member-row">
+      <span class="member-position-label">${esc(slot.label)}</span>
+      <select data-member-set="${set.key}" data-member-slot="${slot.slotId}">
+        ${tb23PlayerOptions(state[slot.slotId] || "")}
+      </select>
+    </div>`).join("");
+  return `<section class="member-set-panel">
+    <div class="member-set-head">
+      <div><h4>${esc(set.title)}</h4><p class="member-sub-note">${esc(set.note)}</p></div>
+      <span class="match-set-badge">${esc(el("formationInput").value || "4-4-2")}</span>
+    </div>
+    <div class="member-assign-list">${rows}</div>
+    <div class="member-board" data-member-board="${set.key}">${tb23FormationSvg(tb23MembersForSet(set.key))}</div>
+  </section>`;
+}
+function tb23RenderSubstitutions(){
+  if(el("matchType").value === "trm") return "";
+  const rows = tb23SubstitutionState.map(s=>`
+    <div class="sub-row" data-sub-id="${s.id}">
+      <label>時間<input data-sub-field="time" data-sub-id="${s.id}" value="${esc(s.time || "")}" placeholder="例：55分"></label>
+      <label>OUT<select data-sub-field="outPlayerId" data-sub-id="${s.id}">${tb23PlayerOptions(s.outPlayerId || "")}</select></label>
+      <label>IN<select data-sub-field="inPlayerId" data-sub-id="${s.id}">${tb23PlayerOptions(s.inPlayerId || "")}</select></label>
+      <label>交代後ポジション<input data-sub-field="position" data-sub-id="${s.id}" value="${esc(s.position || "")}" placeholder="例：FW1 / SH / CB"></label>
+      <button type="button" class="danger" data-sub-delete="${s.id}">×</button>
+    </div>`).join("");
+  return `<section class="substitution-panel">
+    <div class="substitution-head">
+      <div><h4>交代選手 / ポジション変更</h4><p class="member-sub-note">公式戦のみ。時間、OUT、IN、交代後ポジションを登録できます。</p></div>
+      <button id="addSubstitutionBtn" type="button" class="primary">＋ 交代追加</button>
+    </div>
+    <div class="substitution-list">${rows || `<div class="no-player-note">交代がある場合は「交代追加」を押してください。</div>`}</div>
+  </section>`;
+}
+function tb23BindMemberEditor(){
+  document.querySelectorAll("[data-member-slot]").forEach(sel=>{
+    sel.onchange=()=>{
+      if(!tb23MemberSelectionState[sel.dataset.memberSet]) tb23MemberSelectionState[sel.dataset.memberSet] = {};
+      tb23MemberSelectionState[sel.dataset.memberSet][sel.dataset.memberSlot] = sel.value || "";
+      const board = document.querySelector(`[data-member-board="${sel.dataset.memberSet}"]`);
+      if(board) board.innerHTML = tb23FormationSvg(tb23MembersForSet(sel.dataset.memberSet));
+    };
+  });
+  document.querySelectorAll("[data-sub-field]").forEach(x=>{x.oninput=tb23Capture;x.onchange=tb23Capture;});
+  document.querySelectorAll("[data-sub-delete]").forEach(btn=>{
+    btn.onclick=()=>{tb23Capture();tb23SubstitutionState=tb23SubstitutionState.filter(s=>s.id!==btn.dataset.subDelete);tb23RenderMemberEditor();};
+  });
+  const add = el("addSubstitutionBtn");
+  if(add) add.onclick=()=>{tb23Capture();tb23SubstitutionState.push({id:uid(),time:"",outPlayerId:"",inPlayerId:"",position:""});tb23RenderMemberEditor();};
+}
+function tb23RenderMemberEditor(){
+  const root = el("memberEditorRoot");
+  if(!root) return;
+  const isTrm = el("matchType").value === "trm";
+  el("memberPanelTitle").textContent = isTrm ? "TRMメンバー / フォーメーション" : "スタメン表示 / フォーメーション";
+  el("memberPanelNote").textContent = isTrm ? "TRMはスタメンではなく、1本目メンバー・2本目メンバーのように本数ごとに登録します。" : "公式戦はスタメン、交代時間、交代選手、交代後ポジションを登録できます。";
+  if(!tb23Players().length){
+    root.innerHTML = `<div class="no-player-note">設定ページで選手登録をすると、ここにメンバー選択欄が表示されます。</div>`;
+    return;
+  }
+  tb23SetDefs().forEach(s=>{ if(!tb23MemberSelectionState[s.key]) tb23MemberSelectionState[s.key] = {}; });
+  root.innerHTML = tb23SetDefs().map(tb23RenderMemberSet).join("") + tb23RenderSubstitutions();
+  tb23BindMemberEditor();
+}
+function tb23CollectMemberSets(){
+  tb23Capture();
+  const out = {};
+  tb23SetDefs().forEach(s=>out[s.key]=clone(tb23MemberSelectionState[s.key] || {}));
+  return out;
+}
+function tb23StartersForSet(setKey){
+  return tb23MembersForSet(setKey).map(p=>({slotId:p.slotId,label:p.label,playerId:p.playerId,number:p.number,name:p.name}));
+}
+function tb23SetStateFromSaved(starters, memberSets, substitutions){
+  tb23MemberSelectionState = memberSets ? clone(memberSets) : {};
+  if(!memberSets && Array.isArray(starters)){
+    tb23MemberSelectionState.starter = {};
+    starters.forEach(s=>{if(s && s.slotId) tb23MemberSelectionState.starter[s.slotId]=s.playerId || "";});
+  }
+  tb23SubstitutionState = Array.isArray(substitutions) ? clone(substitutions) : [];
+}
+function tb23MiniFormation(match){
+  const oldFormation = el("formationInput") ? el("formationInput").value : "4-4-2";
+  const oldState = clone(tb23MemberSelectionState);
+  if(el("formationInput")) el("formationInput").value = match.formation || "4-4-2";
+  tb23MemberSelectionState = clone(match.memberSets || {});
+  if(!match.memberSets && match.starters){
+    tb23MemberSelectionState.starter = {};
+    match.starters.forEach(s=>{if(s && s.slotId) tb23MemberSelectionState.starter[s.slotId]=s.playerId || "";});
+  }
+  const keys = match.matchType === "trm"
+    ? Array.from({length:Math.max(3,Math.min(6,Number(match.trmCount||3)))},(_,i)=>({key:`set${i+1}`,title:`${i+1}本目メンバー`}))
+    : [{key:"starter",title:"スタメン"}];
+  const html = keys.map(k=>`<div class="mini-lineup-board"><div class="match-set-title">${esc(k.title)}</div>${tb23FormationSvg(tb23MembersForSet(k.key))}</div>`).join("");
+  tb23MemberSelectionState = oldState;
+  if(el("formationInput")) el("formationInput").value = oldFormation;
+  return html;
+}
+function tb23SubChips(match){
+  const subs = (match.substitutions || []).filter(s=>s.inPlayerId || s.outPlayerId || s.time || s.position);
+  if(!subs.length) return "";
+  return `<div class="lineup-chip-row">${subs.map(s=>{
+    const outP = tb23Players().find(p=>p.id===s.outPlayerId);
+    const inP = tb23Players().find(p=>p.id===s.inPlayerId);
+    return `<span class="match-sub-chip">${esc(s.time || "-")} OUT ${outP ? "#"+esc(outP.number)+" "+esc(outP.name) : "-"} / IN ${inP ? "#"+esc(inP.number)+" "+esc(inP.name) : "-"} ${s.position ? "→ "+esc(s.position) : ""}</span>`;
+  }).join("")}</div>`;
+}
+
+/* Override existing names used by app */
+function renderStarterAssignments(){ tb23RenderMemberEditor(); }
+function renderFormationPreview(){ tb23RenderMemberEditor(); }
+
+
+function applySelectedColor(){
+  const o = getSelectedObject();
+  if(!o){ toast("色を変えるパーツを選択してください"); return; }
+  o.color = el("partColor").value || "#ffffff";
+  renderBoard();
+  toast("色を変更しました");
+}
 
 document.addEventListener("DOMContentLoaded",()=>{
   if(!sessions.length){sessions=[sample()];saveAll();}
@@ -1238,6 +1573,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   refreshMastersUI();
 
   document.querySelectorAll(".nav-btn").forEach(b=>b.onclick=()=>page(b.dataset.page));
+  el("yearSelector").onchange=()=>setActiveYear(el("yearSelector").value);
 
   el("homeCreateBtn").onclick=newSession;
   el("goSearchBtn").onclick=()=>page("searchPage");
@@ -1274,6 +1610,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   el("sizeUpBtn").onclick=()=>adjustSelectedSize(1.1);
   el("duplicateBtn").onclick=duplicateSelectedObject;
   el("deleteSelectedBtn").onclick=deleteSelectedObject;
+  el("applyColorBtn").onclick=applySelectedColor;
   el("rotateLeftBtn").onclick=()=>rotateCurrent(-45);
   el("rotateRightBtn").onclick=()=>rotateCurrent(45);
 
@@ -1314,9 +1651,10 @@ document.addEventListener("DOMContentLoaded",()=>{
       el("matchName").value = el("matchType").value==="trm" ? "TRM" : "公式戦";
     }
     renderScoreInputs();
+    tb23RenderMemberEditor();
   };
-  el("trmCount").onchange=()=>renderScoreInputs();
-  el("formationInput").oninput=()=>renderStarterAssignments();
+  el("trmCount").onchange=()=>{renderScoreInputs();tb23RenderMemberEditor();};
+  el("formationInput").oninput=()=>tb23RenderMemberEditor();
 
   // 資料
   el("clearMaterialFormBtn").onclick=clearMaterialForm;
