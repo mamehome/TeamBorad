@@ -50,6 +50,17 @@
       </div>
     </section>
 
+    <section class="year-switch-panel">
+      <div>
+        <p class="small">Season</p>
+        <h2>年度</h2>
+        <p>選択した年度ごとに、指導案・試合結果・資料・選手成績を分けて管理します。</p>
+      </div>
+      <label>表示年度
+        <select id="activeYearSelect"></select>
+      </label>
+    </section>
+
     <section class="sync-banner" id="syncStatus">Drive未接続：端末内に保存中</section>
 
     <section class="section-title">
@@ -303,6 +314,17 @@
 
       <div id="dynamicScoreGrid" class="score-grid"></div>
 
+      <section class="wide match-events-panel">
+        <div class="lineup-head">
+          <div>
+            <h3>得点 / アシスト</h3>
+            <p>選手マスタに登録した選手を、背番号つきで選択できます。</p>
+          </div>
+          <button id="addGoalEventBtn" type="button" class="small-btn">＋ 得点を追加</button>
+        </div>
+        <div id="goalEventList" class="goal-event-list"></div>
+      </section>
+
       <section class="wide lineup-panel">
         <div class="lineup-head">
           <div>
@@ -339,6 +361,16 @@
         <button id="saveMatchBtn" class="primary">試合結果を保存</button>
       </div>
     </section>
+
+    <section class="section-title">
+      <div>
+        <p class="small white">Players</p>
+        <h2>選手一覧 / 成績</h2>
+      </div>
+      <span id="playerStatsCountBadge">0人</span>
+    </section>
+
+    <section id="playerStatsList" class="player-stats-list"></section>
 
     <section class="section-title">
       <div>
@@ -464,7 +496,14 @@
         <h3>対象カテゴリー</h3>
         <p>U-8、U-10、U-12など。</p>
         <textarea id="masterAges" rows="12"></textarea>
-      
+      </section>
+
+      <section class="panel master-card">
+        <h3>年度管理</h3>
+        <p>例：2026年度、2027年度。TOP画面で表示年度を切り替えます。</p>
+        <textarea id="masterYears" rows="8"></textarea>
+      </section>
+
       <section class="panel master-card player-master-card">
         <h3>選手登録</h3>
         <p>背番号と名前を登録すると、試合結果のスタメン設定で使用できます。</p>
