@@ -2,6 +2,7 @@
 const DATA_KEY = "teamboard-v5-data";
 const MASTER_KEY = "teamboard-v5-masters";
 const MATCH_KEY = "teamboard-v9-matches";
+const MATERIAL_KEY = "teamboard-v21-materials";
 const SYNC_KEY = "teamboard-v5-sync";
 const PARTS = [["wup","W-up"],["tr1","TR1"],["tr2","TR2"],["game","Game"]];
 
@@ -11,12 +12,15 @@ const defaultMasters = {
   categories: ["攻撃","守備","ポゼッション","フィニッシュ","ビルドアップ","トランジション","ウォーミングアップ","ゲーム"],
   ages: ["U-8","U-10","U-12","U-15","U-18","一般"],
   logoData: "teamboard-logo.png",
-  surfaceType: "soccer"
+  surfaceType: "soccer",
+  players: []
 };
 
 let sessions = loadLocal(DATA_KEY, []);
 let matches = loadLocal(MATCH_KEY, []);
+let materials = loadLocal(MATERIAL_KEY, []);
 let masters = loadLocal(MASTER_KEY, defaultMasters);
+if(!Array.isArray(masters.players)) masters.players = [];
 let syncSetting = loadLocal(SYNC_KEY, {gasUrl:"", teamKey:""});
 let draft = emptySession();
 let activePart = "wup";
@@ -30,6 +34,7 @@ function loadLocal(k, fallback){try{return JSON.parse(localStorage.getItem(k)) |
 function saveLocal(k,v){localStorage.setItem(k, JSON.stringify(v));}
 function saveAll(){saveLocal(DATA_KEY, sessions);}
 function saveMatches(){saveLocal(MATCH_KEY, matches);}
+function saveMaterials(){saveLocal(MATERIAL_KEY, materials);}
 function saveMasters(){saveLocal(MASTER_KEY, masters);}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function clone(o){return JSON.parse(JSON.stringify(o));}
@@ -53,11 +58,14 @@ function refreshMastersUI(){
   fillSelect("timePlan", masters.times);
   fillSelect("categoryFilter", masters.categories, "カテゴリーすべて");
   fillSelect("matchCategory", masters.ages);
+  fillSelect("materialCategory", masters.ages);
+  if(!Array.isArray(masters.players)) masters.players = [];
   el("masterTags").value = masters.tags.join("\n");
   el("masterTimes").value = masters.times.join("\n");
   el("masterCategories").value = masters.categories.join("\n");
   el("masterAges").value = masters.ages.join("\n");
   el("surfaceType").value = masters.surfaceType || "soccer";
+  renderPlayerMasterList();
 }
 
 function renderLogo(){
@@ -101,6 +109,7 @@ function readMastersUI(){
   masters.ages = lines("masterAges");
   masters.logoData = (masters.logoData === undefined || masters.logoData === null) ? "teamboard-logo.png" : masters.logoData;
   masters.surfaceType = el("surfaceType").value || "soccer";
+  if(!Array.isArray(masters.players)) masters.players = [];
   saveMasters();
   refreshMastersUI();
   renderTags();
@@ -169,31 +178,50 @@ function centerCircleShape(x,y,r=0,s=1){
   return `<g transform="rotate(${r} ${x} ${y})"><circle cx="${x}" cy="${y}" r="${rr}" fill="none" stroke="#fff" stroke-width="${sw}"/><circle cx="${x}" cy="${y}" r="${dot}" fill="#fff"/></g>`;
 }
 function goalFrameShape(x,y,r=0,s=1){
-  const w = 108*s, h = 48*s, sw = Math.max(3,7*s), inner = Math.max(2,3*s);
+  const w = 124*s, h = 58*s, sw = Math.max(3,7*s), mesh = Math.max(1.5,2.4*s);
+  const left = x - w/2, top = y - h/2;
   return `<g transform="rotate(${r} ${x} ${y})">
-    <rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${6*s}" fill="none" stroke="#fff" stroke-width="${sw}"/>
-    <line x1="${x-42*s}" y1="${y-10*s}" x2="${x+42*s}" y2="${y-10*s}" stroke="#fff" stroke-width="${inner}" opacity=".65"/>
-    <line x1="${x-42*s}" y1="${y+10*s}" x2="${x+42*s}" y2="${y+10*s}" stroke="#fff" stroke-width="${inner}" opacity=".65"/>
-    <line x1="${x-18*s}" y1="${y-22*s}" x2="${x-18*s}" y2="${y+22*s}" stroke="#fff" stroke-width="${inner}" opacity=".65"/>
-    <line x1="${x+18*s}" y1="${y-22*s}" x2="${x+18*s}" y2="${y+22*s}" stroke="#fff" stroke-width="${inner}" opacity=".65"/>
+    <path d="M ${left} ${top+h} L ${left} ${top} L ${left+w} ${top} L ${left+w} ${top+h}" fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
+    <g opacity=".6">
+      <line x1="${left+18*s}" y1="${top+8*s}" x2="${left+18*s}" y2="${top+h-2*s}" stroke="#fff" stroke-width="${mesh}"/>
+      <line x1="${left+w/2}" y1="${top+5*s}" x2="${left+w/2}" y2="${top+h-2*s}" stroke="#fff" stroke-width="${mesh}"/>
+      <line x1="${left+w-18*s}" y1="${top+8*s}" x2="${left+w-18*s}" y2="${top+h-2*s}" stroke="#fff" stroke-width="${mesh}"/>
+      <line x1="${left+2*s}" y1="${top+18*s}" x2="${left+w-2*s}" y2="${top+18*s}" stroke="#fff" stroke-width="${mesh}"/>
+      <line x1="${left+2*s}" y1="${top+36*s}" x2="${left+w-2*s}" y2="${top+36*s}" stroke="#fff" stroke-width="${mesh}"/>
+    </g>
   </g>`;
 }
 function soccerPenaltyShape(x,y,r=0,s=1){
-  const sw1 = Math.max(3,7*s), sw2 = Math.max(2,5*s);
+  const swMain = Math.max(3,7*s), swSub = Math.max(2,5*s);
+  const goalLineX = x - 110*s;
+  const boxDepth = 182*s;
+  const boxHalfH = 132*s;
+  const goalAreaDepth = 62*s;
+  const goalAreaHalfH = 64*s;
+  const spotX = goalLineX + 80*s;
+  const arcR = 64*s;
   return `<g transform="rotate(${r} ${x} ${y})">
-    <rect x="${x-90*s}" y="${y-130*s}" width="${180*s}" height="${260*s}" fill="none" stroke="#fff" stroke-width="${sw1}"/>
-    <rect x="${x-90*s}" y="${y-66*s}" width="${62*s}" height="${132*s}" fill="none" stroke="#fff" stroke-width="${sw2}"/>
-    <path d="M ${x+34*s} ${y-52*s} A ${70*s} ${70*s} 0 0 1 ${x+34*s} ${y+52*s}" fill="none" stroke="#fff" stroke-width="${sw2}"/>
-    <circle cx="${x}" cy="${y}" r="${Math.max(4,6*s)}" fill="#fff"/>
+    <line x1="${goalLineX}" y1="${y-boxHalfH}" x2="${goalLineX}" y2="${y+boxHalfH}" stroke="#fff" stroke-width="${swMain}" stroke-linecap="round"/>
+    <path d="M ${goalLineX} ${y-boxHalfH} L ${goalLineX+boxDepth} ${y-boxHalfH} L ${goalLineX+boxDepth} ${y+boxHalfH} L ${goalLineX} ${y+boxHalfH}" fill="none" stroke="#fff" stroke-width="${swMain}" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M ${goalLineX} ${y-goalAreaHalfH} L ${goalLineX+goalAreaDepth} ${y-goalAreaHalfH} L ${goalLineX+goalAreaDepth} ${y+goalAreaHalfH} L ${goalLineX} ${y+goalAreaHalfH}" fill="none" stroke="#fff" stroke-width="${swSub}" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${spotX}" cy="${y}" r="${Math.max(4,5*s)}" fill="#fff"/>
+    <path d="M ${spotX+arcR*Math.cos(-0.92)} ${y+arcR*Math.sin(-0.92)}
+             A ${arcR} ${arcR} 0 0 1 ${spotX+arcR*Math.cos(0.92)} ${y+arcR*Math.sin(0.92)}"
+          fill="none" stroke="#fff" stroke-width="${swSub}" stroke-linecap="round"/>
   </g>`;
 }
 function futsalGoalAreaShape(x,y,r=0,s=1){
-  const sw1 = Math.max(3,7*s), sw2 = Math.max(2,5*s);
+  const swMain = Math.max(3,7*s), swSub = Math.max(2,4*s);
+  const goalLineX = x - 102*s;
+  const radius = 92*s;
+  const boxHalfH = 116*s;
   return `<g transform="rotate(${r} ${x} ${y})">
-    <line x1="${x-4*s}" y1="${y-120*s}" x2="${x-4*s}" y2="${y+120*s}" stroke="#fff" stroke-width="${sw1}" stroke-linecap="round"/>
-    <path d="M ${x-4*s} ${y-120*s} A ${120*s} ${120*s} 0 0 1 ${x-4*s} ${y+120*s}" fill="none" stroke="#fff" stroke-width="${sw1}"/>
-    <rect x="${x-8*s}" y="${y-48*s}" width="${36*s}" height="${96*s}" fill="none" stroke="#fff" stroke-width="${sw2}"/>
-    <circle cx="${x+88*s}" cy="${y}" r="${Math.max(3,5*s)}" fill="#fff"/>
+    <line x1="${goalLineX}" y1="${y-boxHalfH}" x2="${goalLineX}" y2="${y+boxHalfH}" stroke="#fff" stroke-width="${swMain}" stroke-linecap="round"/>
+    <path d="M ${goalLineX} ${y-boxHalfH}
+             A ${radius} ${radius} 0 0 1 ${goalLineX} ${y+boxHalfH}"
+          fill="none" stroke="#fff" stroke-width="${swMain}" stroke-linecap="round"/>
+    <rect x="${goalLineX-2*s}" y="${y-40*s}" width="${34*s}" height="${80*s}" rx="${3*s}" fill="none" stroke="#fff" stroke-width="${swSub}"/>
+    <circle cx="${goalLineX+60*s}" cy="${y}" r="${Math.max(3,4*s)}" fill="#fff"/>
   </g>`;
 }
 function courtAreaShape(x,y,r=0,s=1){
@@ -201,8 +229,24 @@ function courtAreaShape(x,y,r=0,s=1){
   return type === "futsal" ? futsalGoalAreaShape(x,y,r,s) : soccerPenaltyShape(x,y,r,s);
 }
 function ballShape(x,y,s=1){
-  const rr = 15*s, sw = Math.max(2,4*s), ir = Math.max(3,4*s);
-  return `<circle cx="${x}" cy="${y}" r="${rr}" fill="#fff" stroke="#111" stroke-width="${sw}"/><circle cx="${x}" cy="${y}" r="${ir}" fill="#111"/>`;
+  const r = 16*s, sw = Math.max(1.8,3*s);
+  const p = [
+    [0,-6.5],[6,-2],[3.7,5],[-3.7,5],[-6,-2]
+  ].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
+  const top = [[0,-13],[5,-9],[3,-3],[-3,-3],[-5,-9]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
+  const left = [[-12,-4],[-7,-1],[-8,5],[-13,7],[-15,1]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
+  const right = [[12,-4],[15,1],[13,7],[8,5],[7,-1]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
+  const lowerL = [[-6,9],[-2,6],[2,9],[0,14],[-6,14]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
+  const lowerR = [[6,9],[0,14],[6,14],[11,10],[10,5]].map(([dx,dy])=>`${x+dx*s},${y+dy*s}`).join(" ");
+  return `<g>
+    <circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#101010" stroke-width="${sw}"/>
+    <polygon points="${p}" fill="#111"/>
+    <polygon points="${top}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
+    <polygon points="${left}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
+    <polygon points="${right}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
+    <polygon points="${lowerL}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
+    <polygon points="${lowerR}" fill="none" stroke="#111" stroke-width="${Math.max(1.2,2*s)}" stroke-linejoin="round"/>
+  </g>`;
 }
 function textShape(x,y,text,s=1){
   const safe = esc(text);
@@ -244,7 +288,7 @@ function objectBounds(o){
   }
   const boxes = {
     attack:[56,56], defense:[56,56], free:[56,56], cone:[58,58], marker:[40,40], ball:[34,34],
-    centerLine:[80,540*s], centerCircle:[170*s,170*s], goalFrame:[128*s,72*s], courtArea:[220*s,300*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
+    centerLine:[80,540*s], centerCircle:[170*s,170*s], goalFrame:[142*s,84*s], courtArea:[300*s,310*s], ball:[44*s,44*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
   };
   const wh = boxes[o.type] || [70*s,70*s];
   return {x:o.x - wh[0]/2, y:o.y - wh[1]/2, w:wh[0], h:wh[1]};
@@ -580,9 +624,10 @@ function preview(id){
 function updateSyncStatus(){el("syncStatus").textContent=(syncSetting.gasUrl&&syncSetting.teamKey)?"同期設定あり：右上の同期からDrive保存・読み込みできます":"Drive未接続：端末内に保存中";}
 function openSync(){el("gasUrl").value=syncSetting.gasUrl||"";el("teamKey").value=syncSetting.teamKey||"";el("syncDialog").showModal();}
 function saveSyncSetting(){syncSetting={gasUrl:el("gasUrl").value.trim(),teamKey:el("teamKey").value.trim()};saveLocal(SYNC_KEY,syncSetting);updateSyncStatus();toast("同期設定を保存しました");}
-async function pushDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}const payload={action:"save",teamKey:syncSetting.teamKey,data:{version:9,updatedAt:new Date().toISOString(),sessions,masters,matches}};try{const res=await fetch(syncSetting.gasUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});const json=await res.json();if(!json.ok)throw new Error(json.error||"保存失敗");toast("Driveへ保存しました");}catch(e){alert("Drive保存に失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
-async function pullDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}if(sessions.length&&!confirm("Driveのデータでこの端末のデータを置き換えますか？"))return;try{const url=syncSetting.gasUrl+"?action=load&teamKey="+encodeURIComponent(syncSetting.teamKey);const res=await fetch(url);const json=await res.json();if(!json.ok)throw new Error(json.error||"読み込み失敗");sessions=(json.data&&json.data.sessions)||[];matches=(json.data&&json.data.matches)||[];masters={...defaultMasters, ...((json.data&&json.data.masters)||masters)};saveAll();saveMatches();saveMasters();refreshMastersUI();renderAll();toast("Driveから読み込みました");}catch(e){alert("Drive読み込みに失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
-function downloadJson(){const blob=new Blob([JSON.stringify({version:9,updatedAt:new Date().toISOString(),sessions,masters,matches},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="TeamBoard-data.json";a.click();URL.revokeObjectURL(a.href);}
+async function pushDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}const payload={action:"save",teamKey:syncSetting.teamKey,data:{version:21,updatedAt:new Date().toISOString(),sessions,masters,matches,materials}};try{const res=await fetch(syncSetting.gasUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});const json=await res.json();if(!json.ok)throw new Error(json.error||"保存失敗");toast("Driveへ保存しました");}catch(e){alert("Drive保存に失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
+async function pullDrive(){saveSyncSetting();if(!syncSetting.gasUrl||!syncSetting.teamKey){toast("URLとチームキーを入力してください");return;}if(sessions.length&&!confirm("Driveのデータでこの端末のデータを置き換えますか？"))return;try{const url=syncSetting.gasUrl+"?action=load&teamKey="+encodeURIComponent(syncSetting.teamKey);const res=await fetch(url);const json=await res.json();if(!json.ok)throw new Error(json.error||"読み込み失敗");sessions=(json.data&&json.data.sessions)||[];matches=(json.data&&json.data.matches)||[];materials=(json.data&&json.data.materials)||[];masters={...defaultMasters, ...((json.data&&json.data.masters)||masters)};saveAll();saveMatches();saveMaterials();saveMasters();refreshMastersUI();renderAll();toast("Driveから読み込みました");}catch(e){alert("Drive読み込みに失敗しました。URL、チームキー、Apps Scriptのデプロイ設定を確認してください。\n\n"+e.message);}}
+function downloadJson(){const blob=new Blob([JSON.stringify({version:21,updatedAt:new Date().toISOString(),sessions,masters,matches,materials},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="TeamBoard-data.json";a.click();URL.revokeObjectURL(a.href);}
+
 
 
 function todayISO(){
@@ -594,49 +639,306 @@ function todayISO(){
 function num(id){
   return Math.max(0, Number(el(id).value || 0));
 }
+
+let starterSelectionState = {};
+
+function getPlayers(){
+  if(!Array.isArray(masters.players)) masters.players = [];
+  return masters.players;
+}
+function playerLabel(p){
+  return `#${p.number} ${p.name}`;
+}
+function renderPlayerMasterList(){
+  const list = el("playerMasterList");
+  if(!list) return;
+  const players = [...getPlayers()].sort((a,b)=>Number(a.number)-Number(b.number));
+  list.innerHTML = players.length ? players.map(p => `
+    <div class="player-master-item" data-player-id="${p.id}">
+      <span class="player-no-pill">#${esc(p.number)}</span>
+      <span class="player-name-text">${esc(p.name)}</span>
+      <button type="button" class="danger" data-player-del="${p.id}">削除</button>
+    </div>
+  `).join("") : `<div class="empty"><h3>登録選手がまだいません</h3><p>背番号と名前を入力して選手追加してください。</p></div>`;
+  document.querySelectorAll("[data-player-del]").forEach(btn=>{
+    btn.onclick=()=>deletePlayerMaster(btn.dataset.playerDel);
+  });
+}
+function addPlayerMaster(){
+  const number = String(el("playerNumberInput").value || "").trim();
+  const name = el("playerNameInput").value.trim();
+  if(!number || !name){
+    toast("背番号と名前を入力してください");
+    return;
+  }
+  if(getPlayers().some(p => String(p.number) === number)){
+    toast("同じ背番号の選手がいます");
+    return;
+  }
+  masters.players.push({id:uid(), number, name});
+  saveMasters();
+  renderPlayerMasterList();
+  renderStarterAssignments();
+  el("playerNumberInput").value = "";
+  el("playerNameInput").value = "";
+  toast("選手を登録しました");
+}
+function deletePlayerMaster(id){
+  if(!confirm("この選手を削除しますか？")) return;
+  masters.players = getPlayers().filter(p => p.id !== id);
+  Object.keys(starterSelectionState).forEach(k=>{
+    if(starterSelectionState[k] === id) starterSelectionState[k] = "";
+  });
+  saveMasters();
+  renderPlayerMasterList();
+  renderStarterAssignments();
+  toast("選手を削除しました");
+}
+function formationRoleNames(count){
+  if(count === 2) return ["DF","FW"];
+  if(count === 3) return ["DF","MF","FW"];
+  if(count === 4) return ["DF","MF","AM","FW"];
+  if(count === 5) return ["DF","DM","CM","AM","FW"];
+  return Array.from({length:count},(_,i)=>`L${i+1}`);
+}
+function parseFormation(v){
+  const nums = String(v || "").split(/[‐‑‒–—―ー－-]+/).map(x=>Number(x.trim())).filter(n=>Number.isFinite(n) && n > 0);
+  return nums.length ? nums : [4,4,2];
+}
+function getFormationSlots(value){
+  const lines = parseFormation(value);
+  const roles = formationRoleNames(lines.length);
+  const slots = [{slotId:"GK1", label:"GK"}];
+  lines.forEach((count, lineIdx)=>{
+    const role = roles[lineIdx] || `L${lineIdx+1}`;
+    for(let i=1;i<=count;i++){
+      slots.push({slotId:`${role}${i}`, label:`${role}${i}`});
+    }
+  });
+  return slots;
+}
+function captureStarterStateFromDOM(){
+  const obj = {};
+  document.querySelectorAll("[data-starter-slot]").forEach(s=>{
+    obj[s.dataset.starterSlot] = s.value || "";
+  });
+  starterSelectionState = obj;
+}
+function setStarterStateFromSaved(starters){
+  starterSelectionState = {};
+  (starters || []).forEach(s=>{
+    if(s && s.slotId) starterSelectionState[s.slotId] = s.playerId || "";
+  });
+}
+function renderStarterAssignments(){
+  const wrap = el("starterAssignList");
+  const preview = el("formationPreview");
+  if(!wrap || !preview) return;
+  captureStarterStateFromDOM();
+  const slots = getFormationSlots(el("formationInput").value);
+  const players = [...getPlayers()].sort((a,b)=>Number(a.number)-Number(b.number));
+
+  if(!players.length){
+    wrap.innerHTML = `<div class="no-player-note">設定ページで選手登録をすると、ここでスタメンを選択できます。</div>`;
+    renderFormationPreview();
+    return;
+  }
+
+  const options = selected => `<option value="">未選択</option>` + players.map(p => `<option value="${p.id}" ${selected===p.id ? "selected" : ""}>${esc(playerLabel(p))}</option>`).join("");
+  wrap.innerHTML = slots.map(slot => `
+    <div class="starter-row">
+      <span class="slot-label">${esc(slot.label)}</span>
+      <select data-starter-slot="${slot.slotId}">
+        ${options(starterSelectionState[slot.slotId] || "")}
+      </select>
+    </div>
+  `).join("");
+
+  document.querySelectorAll("[data-starter-slot]").forEach(sel=>{
+    sel.onchange = ()=>{
+      starterSelectionState[sel.dataset.starterSlot] = sel.value || "";
+      renderFormationPreview();
+    };
+  });
+
+  renderFormationPreview();
+}
+function buildFormationCoords(formationValue){
+  const lines = parseFormation(formationValue);
+  const rows = [1, ...lines];
+  const totalRows = rows.length;
+  const coords = [{slotId:"GK1", label:"GK", x:120, y:320}];
+  const roles = formationRoleNames(lines.length);
+  lines.forEach((count, i)=>{
+    const x = totalRows === 1 ? 500 : 120 + ((i+1) * 760 / (totalRows-1));
+    for(let k=0; k<count; k++){
+      const y = count === 1 ? 320 : 100 + (k * (440 / (count-1)));
+      coords.push({slotId:`${roles[i]}${k+1}`, label:`${roles[i]}${k+1}`, x, y});
+    }
+  });
+  return coords;
+}
+function getSelectedStarterObjects(){
+  const players = getPlayers();
+  return buildFormationCoords(el("formationInput").value).map(pos=>{
+    const pid = starterSelectionState[pos.slotId] || "";
+    const p = players.find(x => x.id === pid);
+    return {
+      ...pos,
+      playerId: pid,
+      number: p ? p.number : "",
+      name: p ? p.name : ""
+    };
+  });
+}
+function renderFormationPreview(){
+  const box = el("formationPreview");
+  if(!box) return;
+  const coords = getSelectedStarterObjects();
+  let stripes = "";
+  for(let x=0;x<1000;x+=100){
+    stripes += `<rect x="${x}" y="0" width="50" height="640" fill="rgba(255,255,255,.05)"/>`;
+  }
+  const playersSvg = coords.map(p => `
+    <g transform="translate(${p.x},${p.y})">
+      <circle cx="0" cy="0" r="27" fill="${p.number ? "#ffffff" : "rgba(255,255,255,.22)"}" stroke="#102d1c" stroke-width="3"/>
+      <text x="0" y="7" text-anchor="middle" font-size="20" font-weight="900" fill="#102d1c">${esc(p.number || p.label)}</text>
+      <text x="0" y="48" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">${esc(p.name || "")}</text>
+    </g>
+  `).join("");
+  box.innerHTML = `
+    <svg viewBox="0 0 1000 640" aria-label="formation preview">
+      <rect x="0" y="0" width="1000" height="640" fill="#11813e"/>
+      ${stripes}
+      <rect x="24" y="24" width="952" height="592" rx="28" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <line x1="500" y1="24" x2="500" y2="616" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <circle cx="500" cy="320" r="80" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <circle cx="500" cy="320" r="4" fill="#fff"/>
+      <rect x="24" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <rect x="820" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <rect x="24" y="255" width="54" height="130" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <rect x="922" y="255" width="54" height="130" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      ${playersSvg}
+    </svg>
+  `;
+}
+function getScoreLabels(type, count){
+  if(type === "official") return ["前半", "後半"];
+  const n = Math.max(3, Math.min(6, Number(count || 3)));
+  return Array.from({length:n}, (_,i)=>`${i+1}本目`);
+}
+function readDynamicScores(){
+  const labels = getScoreLabels(el("matchType").value, el("trmCount").value);
+  return labels.map((label, i)=>({
+    label,
+    own: Math.max(0, Number((el(`scoreOwn_${i}`)?.value) || 0)),
+    opp: Math.max(0, Number((el(`scoreOpp_${i}`)?.value) || 0))
+  }));
+}
 function updateMatchTotal(){
-  const own = num("firstOwn") + num("secondOwn");
-  const opp = num("firstOpp") + num("secondOpp");
+  const scores = readDynamicScores();
+  const own = scores.reduce((a,b)=>a + Number(b.own || 0), 0);
+  const opp = scores.reduce((a,b)=>a + Number(b.opp || 0), 0);
   el("totalScore").textContent = `${own} - ${opp}`;
   el("resultLabel").textContent = own > opp ? "WIN" : own < opp ? "LOSE" : "DRAW";
 }
+function renderScoreInputs(prefill){
+  const type = el("matchType").value;
+  const count = el("trmCount").value;
+  const labels = getScoreLabels(type, count);
+  el("trmCountWrap").style.display = type === "trm" ? "grid" : "none";
+  el("matchScoreNote").textContent = type === "official"
+    ? "公式戦は 前半 / 後半 のスコアを入力します。"
+    : "TRMは 3〜6本 を選択して、本数ごとのスコアを入力します。";
+
+  const oldScores = prefill?.scores || readDynamicScores();
+  const map = {};
+  oldScores.forEach((s, i)=>{ map[s.label || i] = s; });
+
+  el("dynamicScoreGrid").innerHTML = labels.map((label, i)=> {
+    const src = map[label] || oldScores[i] || {own:0, opp:0};
+    return `
+      <div class="score-box">
+        <h3>${esc(label)}</h3>
+        <label>自チーム
+          <input id="scoreOwn_${i}" type="number" min="0" value="${Number(src.own || 0)}">
+        </label>
+        <label>相手
+          <input id="scoreOpp_${i}" type="number" min="0" value="${Number(src.opp || 0)}">
+        </label>
+      </div>
+    `;
+  }).join("") + `
+    <div class="score-box total-score-box">
+      <h3>合計</h3>
+      <div id="totalScore" class="total-score">0 - 0</div>
+      <p id="resultLabel" class="result-label">DRAW</p>
+    </div>
+  `;
+
+  labels.forEach((_,i)=>{
+    el(`scoreOwn_${i}`).oninput = updateMatchTotal;
+    el(`scoreOpp_${i}`).oninput = updateMatchTotal;
+  });
+  updateMatchTotal();
+}
 function clearMatchForm(){
   el("matchId").value = "";
-  el("matchName").value = "TRM";
+  el("matchType").value = "official";
+  el("matchName").value = "公式戦";
   el("matchCategory").value = masters.ages[0] || "U-12";
   el("opponentName").value = "";
   el("matchDate").value = todayISO();
   el("videoUrl").value = "";
-  el("firstOwn").value = 0;
-  el("firstOpp").value = 0;
-  el("secondOwn").value = 0;
-  el("secondOpp").value = 0;
+  el("trmCount").value = "3";
+  el("formationInput").value = "4-4-2";
   el("matchMemo").value = "";
-  updateMatchTotal();
+  starterSelectionState = {};
+  renderScoreInputs({scores:[{label:"前半",own:0,opp:0},{label:"後半",own:0,opp:0}]});
+  renderStarterAssignments();
+}
+function collectStartersFromState(){
+  const players = getPlayers();
+  return getFormationSlots(el("formationInput").value).map(slot=>{
+    const pid = starterSelectionState[slot.slotId] || "";
+    const p = players.find(x => x.id === pid);
+    return {
+      slotId: slot.slotId,
+      label: slot.label,
+      playerId: pid,
+      number: p ? p.number : "",
+      name: p ? p.name : ""
+    };
+  });
 }
 function readMatchForm(){
-  const firstOwn = num("firstOwn");
-  const firstOpp = num("firstOpp");
-  const secondOwn = num("secondOwn");
-  const secondOpp = num("secondOpp");
+  const scores = readDynamicScores();
+  const totalOwn = scores.reduce((a,b)=>a+Number(b.own||0),0);
+  const totalOpp = scores.reduce((a,b)=>a+Number(b.opp||0),0);
   return {
     id: el("matchId").value || uid(),
-    name: el("matchName").value.trim() || "TRM",
+    matchType: el("matchType").value || "official",
+    name: el("matchName").value.trim() || (el("matchType").value === "trm" ? "TRM" : "公式戦"),
     category: el("matchCategory").value || "",
     opponent: el("opponentName").value.trim(),
     date: el("matchDate").value || todayISO(),
+    trmCount: Number(el("trmCount").value || 3),
+    scores,
+    firstOwn: scores[0]?.own ?? 0,
+    firstOpp: scores[0]?.opp ?? 0,
+    secondOwn: scores[1]?.own ?? 0,
+    secondOpp: scores[1]?.opp ?? 0,
+    totalOwn,
+    totalOpp,
+    formation: el("formationInput").value.trim() || "4-4-2",
+    starters: collectStartersFromState(),
     videoUrl: el("videoUrl").value.trim(),
-    firstOwn,
-    firstOpp,
-    secondOwn,
-    secondOpp,
-    totalOwn: firstOwn + secondOwn,
-    totalOpp: firstOpp + secondOpp,
     memo: el("matchMemo").value.trim(),
     updatedAt: new Date().toISOString()
   };
 }
 function saveMatch(){
+  captureStarterStateFromDOM();
   const item = readMatchForm();
   const i = matches.findIndex(m => m.id === item.id);
   if(i >= 0) matches[i] = item;
@@ -644,23 +946,29 @@ function saveMatch(){
   saveMatches();
   renderMatches();
   clearMatchForm();
+  clearMaterialForm();
   toast("試合結果を保存しました");
 }
 function editMatch(id){
   const m = matches.find(x => x.id === id);
   if(!m) return;
   el("matchId").value = m.id;
-  el("matchName").value = m.name || "TRM";
+  el("matchType").value = m.matchType || "official";
+  el("matchName").value = m.name || ((m.matchType === "trm") ? "TRM" : "公式戦");
   el("matchCategory").value = m.category || masters.ages[0] || "";
   el("opponentName").value = m.opponent || "";
   el("matchDate").value = m.date || todayISO();
   el("videoUrl").value = m.videoUrl || "";
-  el("firstOwn").value = m.firstOwn ?? 0;
-  el("firstOpp").value = m.firstOpp ?? 0;
-  el("secondOwn").value = m.secondOwn ?? 0;
-  el("secondOpp").value = m.secondOpp ?? 0;
+  el("trmCount").value = String(m.trmCount || 3);
+  el("formationInput").value = m.formation || "4-4-2";
   el("matchMemo").value = m.memo || "";
-  updateMatchTotal();
+  setStarterStateFromSaved(m.starters || []);
+  const scores = m.scores?.length ? m.scores : [
+    {label:"前半", own:m.firstOwn ?? 0, opp:m.firstOpp ?? 0},
+    {label:"後半", own:m.secondOwn ?? 0, opp:m.secondOpp ?? 0}
+  ];
+  renderScoreInputs({scores});
+  renderStarterAssignments();
   page("resultsPage");
 }
 function deleteMatch(id){
@@ -672,6 +980,48 @@ function deleteMatch(id){
 function resultText(m){
   return m.totalOwn > m.totalOpp ? "勝ち" : m.totalOwn < m.totalOpp ? "負け" : "引き分け";
 }
+function matchScoreBadges(m){
+  const scores = m.scores?.length ? m.scores : [
+    {label:"前半", own:m.firstOwn ?? 0, opp:m.firstOpp ?? 0},
+    {label:"後半", own:m.secondOwn ?? 0, opp:m.secondOpp ?? 0}
+  ];
+  return scores.map(s => `<span class="badge">${esc(s.label)} ${s.own} - ${s.opp}</span>`).join("") + `<span class="badge">合計 ${m.totalOwn} - ${m.totalOpp}</span>`;
+}
+function miniFormationSVG(match){
+  if(!match.formation) return "";
+  const coords = buildFormationCoords(match.formation);
+  const starters = {};
+  (match.starters || []).forEach(s=>{ if(s && s.slotId) starters[s.slotId] = s; });
+  let stripes = "";
+  for(let x=0;x<1000;x+=100){
+    stripes += `<rect x="${x}" y="0" width="50" height="640" fill="rgba(255,255,255,.05)"/>`;
+  }
+  const body = coords.map(p=>{
+    const st = starters[p.slotId] || {};
+    const number = st.number || "";
+    const name = st.name || "";
+    return `<g transform="translate(${p.x},${p.y})">
+      <circle cx="0" cy="0" r="24" fill="${number ? "#ffffff" : "rgba(255,255,255,.22)"}" stroke="#102d1c" stroke-width="3"/>
+      <text x="0" y="6" text-anchor="middle" font-size="18" font-weight="900" fill="#102d1c">${esc(number || p.label)}</text>
+      <text x="0" y="40" text-anchor="middle" font-size="13" font-weight="800" fill="#ffffff">${esc(name)}</text>
+    </g>`;
+  }).join("");
+  return `<div class="mini-lineup-board"><svg viewBox="0 0 1000 640">
+      <rect x="0" y="0" width="1000" height="640" fill="#11813e"/>
+      ${stripes}
+      <rect x="24" y="24" width="952" height="592" rx="28" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <line x1="500" y1="24" x2="500" y2="616" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <circle cx="500" cy="320" r="80" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <circle cx="500" cy="320" r="4" fill="#fff"/>
+      <rect x="24" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <rect x="820" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      ${body}
+    </svg></div>`;
+}
+function starterChips(match){
+  const items = (match.starters || []).filter(s => s && s.playerId && s.number && s.name);
+  return items.length ? `<div class="lineup-chip-row">${items.map(s => `<span class="lineup-chip">#${esc(s.number)} ${esc(s.name)}</span>`).join("")}</div>` : "";
+}
 function renderMatches(){
   el("matchCountBadge").textContent = matches.length + "件";
   el("matchList").innerHTML = matches.length ? matches.map(m => `
@@ -680,6 +1030,7 @@ function renderMatches(){
         <div>
           <h3>${esc(m.name || "TRM")}${m.opponent ? ` vs ${esc(m.opponent)}` : ""}</h3>
           <div class="badges">
+            <span class="badge match-type-badge ${esc(m.matchType || "official")}">${m.matchType === "trm" ? "TRM" : "公式戦"}</span>
             <span class="badge">対象 ${esc(m.category || "-")}</span>
             ${m.opponent ? `<span class="badge">相手 ${esc(m.opponent)}</span>` : ""}
             <span class="badge">${esc(m.date || "-")}</span>
@@ -689,10 +1040,13 @@ function renderMatches(){
         <div class="match-score">${m.totalOwn} - ${m.totalOpp}</div>
       </div>
       <div class="match-breakdown">
-        <span class="badge">前半 ${m.firstOwn} - ${m.firstOpp}</span>
-        <span class="badge">後半 ${m.secondOwn} - ${m.secondOpp}</span>
-        <span class="badge">合計 ${m.totalOwn} - ${m.totalOpp}</span>
+        ${matchScoreBadges(m)}
       </div>
+      ${(m.formation || "").trim() ? `<div class="match-lineup">
+        <div><span class="lineup-formation-badge">${esc(m.formation)}</span></div>
+        ${miniFormationSVG(m)}
+        ${starterChips(m)}
+      </div>` : ""}
       ${m.videoUrl ? `<a class="video-link" href="${esc(m.videoUrl)}" target="_blank" rel="noopener noreferrer">動画を開く</a>` : ""}
       ${m.memo ? `<div class="match-memo">${esc(m.memo)}</div>` : ""}
       <div class="card-actions">
@@ -700,7 +1054,7 @@ function renderMatches(){
         <button class="danger" data-match-act="delete">削除</button>
       </div>
     </article>
-  `).join("") : `<div class="empty"><h3>まだ試合結果がありません</h3><p>試合名・スコア・メモを入力して保存してください。</p></div>`;
+  `).join("") : `<div class="empty"><h3>まだ試合結果がありません</h3><p>試合名・スコア・スタメン・メモを入力して保存してください。</p></div>`;
   document.querySelectorAll("[data-match-act]").forEach(b => {
     b.onclick = () => {
       const id = b.closest("[data-match-id]").dataset.matchId;
@@ -710,7 +1064,158 @@ function renderMatches(){
   });
 }
 
+
+let pendingMaterialFile = null;
+
+function formatBytes(bytes){
+  if(!bytes && bytes !== 0) return "";
+  const units = ["B","KB","MB"];
+  let v = Number(bytes);
+  let i = 0;
+  while(v >= 1024 && i < units.length-1){ v /= 1024; i++; }
+  return `${v.toFixed(i===0?0:1)} ${units[i]}`;
+}
+function materialFileType(name="", mime=""){
+  const lower = String(name).toLowerCase();
+  if(mime.includes("pdf") || lower.endsWith(".pdf")) return "PDF";
+  if(lower.endsWith(".ppt") || lower.endsWith(".pptx") || mime.includes("powerpoint") || mime.includes("presentation")) return "PPT";
+  return "FILE";
+}
+function clearMaterialForm(){
+  el("materialId").value = "";
+  el("materialTitle").value = "";
+  el("materialCategory").value = masters.ages[0] || "U-12";
+  el("materialDate").value = todayISO();
+  el("materialMemo").value = "";
+  el("materialFileInput").value = "";
+  pendingMaterialFile = null;
+  el("materialFileInfo").textContent = "ファイル未選択";
+}
+function handleMaterialFile(file){
+  if(!file) return;
+  const allowed = [".pdf",".ppt",".pptx"];
+  const ok = allowed.some(ext => file.name.toLowerCase().endsWith(ext));
+  if(!ok){
+    alert("PDF / PowerPoint（.pdf / .ppt / .pptx）のみ保存できます。");
+    el("materialFileInput").value = "";
+    pendingMaterialFile = null;
+    el("materialFileInfo").textContent = "ファイル未選択";
+    return;
+  }
+  const maxBytes = 12 * 1024 * 1024;
+  if(file.size > maxBytes){
+    alert("ファイルが大きすぎます。端末保存・Drive同期の安定性のため、12MB以下を目安にしてください。");
+    el("materialFileInput").value = "";
+    pendingMaterialFile = null;
+    el("materialFileInfo").textContent = "ファイル未選択";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingMaterialFile = {
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      size: file.size,
+      dataUrl: reader.result,
+      fileType: materialFileType(file.name, file.type || "")
+    };
+    el("materialFileInfo").textContent = `${pendingMaterialFile.fileType}：${file.name} / ${formatBytes(file.size)}`;
+  };
+  reader.readAsDataURL(file);
+}
+function readMaterialForm(){
+  const existing = el("materialId").value ? materials.find(m => m.id === el("materialId").value) : null;
+  const file = pendingMaterialFile || (existing ? {
+    fileName: existing.fileName,
+    mimeType: existing.mimeType,
+    size: existing.size,
+    dataUrl: existing.dataUrl,
+    fileType: existing.fileType
+  } : null);
+  return {
+    id: el("materialId").value || uid(),
+    title: el("materialTitle").value.trim() || (file ? file.fileName : "無題の資料"),
+    category: el("materialCategory").value || "",
+    date: el("materialDate").value || todayISO(),
+    memo: el("materialMemo").value.trim(),
+    fileName: file?.fileName || "",
+    mimeType: file?.mimeType || "",
+    size: file?.size || 0,
+    dataUrl: file?.dataUrl || "",
+    fileType: file?.fileType || "FILE",
+    updatedAt: new Date().toISOString()
+  };
+}
+function saveMaterial(){
+  const item = readMaterialForm();
+  if(!item.dataUrl){
+    toast("PDFまたはPowerPointを選択してください");
+    return;
+  }
+  const i = materials.findIndex(m => m.id === item.id);
+  if(i >= 0) materials[i] = item;
+  else materials.unshift(item);
+  saveMaterials();
+  renderMaterials();
+  clearMaterialForm();
+  toast("資料を保存しました");
+}
+function editMaterial(id){
+  const m = materials.find(x => x.id === id);
+  if(!m) return;
+  el("materialId").value = m.id;
+  el("materialTitle").value = m.title || "";
+  el("materialCategory").value = m.category || masters.ages[0] || "";
+  el("materialDate").value = m.date || todayISO();
+  el("materialMemo").value = m.memo || "";
+  el("materialFileInput").value = "";
+  pendingMaterialFile = null;
+  el("materialFileInfo").textContent = `${m.fileType || materialFileType(m.fileName,m.mimeType)}：${m.fileName || "保存済みファイル"} / ${formatBytes(m.size)}`;
+  page("materialsPage");
+}
+function deleteMaterial(id){
+  if(!confirm("この資料を削除しますか？")) return;
+  materials = materials.filter(m => m.id !== id);
+  saveMaterials();
+  renderMaterials();
+}
+function renderMaterials(){
+  if(!el("materialCountBadge")) return;
+  el("materialCountBadge").textContent = materials.length + "件";
+  el("materialList").innerHTML = materials.length ? materials.map(m => `
+    <article class="material-card" data-material-id="${m.id}">
+      <div class="material-card-head">
+        <div>
+          <h3>${esc(m.title || "無題の資料")}</h3>
+          <div class="badges">
+            <span class="badge">対象 ${esc(m.category || "-")}</span>
+            <span class="badge">${esc(m.date || "-")}</span>
+            <span class="badge">${esc(m.fileName || "-")}</span>
+          </div>
+        </div>
+        <span class="material-file-type">${esc(m.fileType || materialFileType(m.fileName,m.mimeType))}</span>
+      </div>
+      <a class="material-link" href="${m.dataUrl}" target="_blank" rel="noopener noreferrer" download="${esc(m.fileName || "material")}">${(m.fileType === "PDF") ? "PDFを開く / 保存" : "PowerPointを保存"}</a>
+      <div class="material-size-note">${esc(m.fileName || "")} ${m.size ? " / " + formatBytes(m.size) : ""}</div>
+      ${m.memo ? `<div class="material-memo">${esc(m.memo)}</div>` : ""}
+      <div class="card-actions">
+        <button data-material-act="edit">編集</button>
+        <button class="danger" data-material-act="delete">削除</button>
+      </div>
+    </article>
+  `).join("") : `<div class="empty"><h3>まだ資料がありません</h3><p>PDFやPowerPointを選択して保存してください。</p></div>`;
+  document.querySelectorAll("[data-material-act]").forEach(b => {
+    b.onclick = () => {
+      const id = b.closest("[data-material-id]").dataset.materialId;
+      if(b.dataset.materialAct === "edit") editMaterial(id);
+      if(b.dataset.materialAct === "delete") deleteMaterial(id);
+    };
+  });
+}
+
+
 function sample(){
+
   const s=emptySession();s.title="前進するためのサポート";s.age="U-12";s.category="攻撃";s.timePlan="60分";s.tags="攻撃, 前進, 少人数";
   s.parts.wup.objects=[{type:"attack",x:250,y:260},{type:"attack",x:390,y:260},{type:"defense",x:320,y:350},{type:"cone",x:190,y:210},{type:"cone",x:450,y:410},{type:"arrow",x1:250,y1:260,x2:390,y2:260}];
   s.parts.wup.organize="12m×12m。攻撃2人、守備1人。";s.parts.wup.rules="5本つなげたら1点。守備が奪ったら交代。";s.parts.wup.coaching="受ける前に観る。パス後に角度を変える。";
@@ -723,12 +1228,12 @@ function sample(){
   return s;
 }
 
-function renderAll(){renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderMatches();updateSyncStatus();}
+function renderAll(){renderSurface();renderToolPalette();renderLogo();renderRecent();renderSearch();renderTags();renderPlayerMasterList();renderMatches();renderMaterials();updateSyncStatus();}
 document.addEventListener("DOMContentLoaded",()=>{
   if(!sessions.length){sessions=[sample()];saveAll();}
   refreshMastersUI();
   document.querySelectorAll(".nav-btn").forEach(b=>b.onclick=()=>page(b.dataset.page));
-  el("homeCreateBtn").onclick=newSession; el("goSearchBtn").onclick=()=>page("searchPage"); el("homeSearchBtn").onclick=()=>page("searchPage"); el("homeResultsBtn").onclick=()=>page("resultsPage");
+  el("homeCreateBtn").onclick=newSession; el("goSearchBtn").onclick=()=>page("searchPage"); el("homeSearchBtn").onclick=()=>page("searchPage"); el("homeResultsBtn").onclick=()=>page("resultsPage"); el("homeMaterialsBtn").onclick=()=>page("materialsPage");
   el("settingsOpenBtn").onclick=()=>page("settingsPage"); el("syncOpenBtn").onclick=openSync;
   el("newBlankBtn").onclick=newSession; el("saveBtn").onclick=saveDraft;
   el("board").addEventListener("pointerdown", boardPointerDown);
@@ -748,17 +1253,35 @@ document.addEventListener("DOMContentLoaded",()=>{
   el("deleteSelectedBtn").onclick=deleteSelectedObject;
   el("rotateLeftBtn").onclick=()=>rotateCurrent(-45);
   el("rotateRightBtn").onclick=()=>rotateCurrent(45);
-  document.querySelectorAll(".part").forEach(b=>b.onclick=()=>setPart(b.dataset.part)); document.querySelectorAll(".tool").forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
+  document.querySelectorAll(".part").forEach(b=>b.onclick=()=>setPart(b.dataset.part));
+  document.querySelectorAll(".tool").forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
   ["keyword","partFilter","categoryFilter","tagFilter"].forEach(id=>{el(id).oninput=renderSearch;el(id).onchange=renderSearch;});
   el("clearSearchBtn").onclick=()=>{el("keyword").value="";el("partFilter").value="";el("categoryFilter").value="";el("tagFilter").value="";renderSearch();};
   el("saveMastersBtn").onclick=readMastersUI;
   el("surfaceType").onchange=()=>{masters.surfaceType=el("surfaceType").value;saveMasters();renderAll();renderBoard();toast("コート仕様を変更しました");};
+  el("addPlayerBtn").onclick=addPlayerMaster;
+  el("playerNumberInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addPlayerMaster(); });
+  el("playerNameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addPlayerMaster(); });
   el("newMatchBtn").onclick=clearMatchForm;
   el("saveMatchBtn").onclick=saveMatch;
-  ["firstOwn","firstOpp","secondOwn","secondOpp"].forEach(id=>{el(id).oninput=updateMatchTotal;});
+  el("clearMaterialFormBtn").onclick=clearMaterialForm;
+  el("saveMaterialBtn").onclick=saveMaterial;
+  el("materialFileInput").onchange=(e)=>handleMaterialFile(e.target.files[0]);
+  el("matchType").onchange=()=>{
+    if(!el("matchName").value || el("matchName").value==="TRM" || el("matchName").value==="公式戦"){
+      el("matchName").value = el("matchType").value==="trm" ? "TRM" : "公式戦";
+    }
+    renderScoreInputs();
+  };
+  el("trmCount").onchange=()=>renderScoreInputs();
+  el("formationInput").oninput=()=>renderStarterAssignments();
   clearMatchForm();
   el("logoFileInput").onchange=(e)=>setLogoFromFile(e.target.files[0]);
   el("clearLogoBtn").onclick=clearLogo;
   el("saveSyncSettingBtn").onclick=saveSyncSetting; el("pushBtn").onclick=pushDrive; el("pullBtn").onclick=pullDrive; el("downloadBtn").onclick=downloadJson;
-  setTool("attack"); updateRotation(); renderBoard(); renderAll();
+  setTool("attack");
+  updateRotation();
+  renderBoard();
+  renderAll();
+  renderStarterAssignments();
 });

@@ -28,6 +28,7 @@
   <button class="nav-btn" data-page="createPage"><span>✏️</span><b>作成</b></button>
   <button class="nav-btn" data-page="searchPage"><span>🔍</span><b>検索</b></button>
   <button class="nav-btn" data-page="resultsPage"><span>📊</span><b>結果</b></button>
+  <button class="nav-btn" data-page="materialsPage"><span>📁</span><b>資料</b></button>
   <button class="nav-btn" data-page="settingsPage"><span>⚙</span><b>設定</b></button>
 </nav>
 
@@ -78,6 +79,15 @@
       </div>
       <button id="homeResultsBtn" class="primary">試合結果へ</button>
     </section>
+
+    <section class="search-shortcut material-shortcut">
+      <div>
+        <p class="small">Materials</p>
+        <h2>座学資料を保存する</h2>
+        <p>PDFやPowerPointなど、ミーティング・座学で使った資料を管理できます。</p>
+      </div>
+      <button id="homeMaterialsBtn" class="primary">資料ページへ</button>
+    </section>
   </section>
 
   <!-- CREATE PAGE -->
@@ -119,47 +129,6 @@
     </section>
 
     <section class="workspace">
-      <aside class="panel tools-panel">
-        <h3>配置パーツ</h3>
-        <div class="tools">
-          <button class="tool active" data-tool="attack"><span class="circle red"></span>攻撃</button>
-          <button class="tool" data-tool="defense"><span class="circle blue"></span>守備</button>
-          <button class="tool" data-tool="free"><span class="circle yellow"></span>フリー</button>
-          <button class="tool" data-tool="cone"><span class="cone"></span>コーン</button>
-          <button class="tool" data-tool="marker"><span class="marker"></span>マーカー</button>
-
-          <button class="tool" data-tool="centerLine"><span class="mini-line"></span><span id="toolLabelCenterLine">センターライン</span></button>
-          <button class="tool" data-tool="centerCircle"><span class="mini-center-circle"></span><span id="toolLabelCenterCircle">センターサークル</span></button>
-          <button class="tool" data-tool="courtArea"><span class="penalty-icon"></span><span id="toolLabelCourtArea">ペナルティエリア</span></button>
-          <button class="tool" data-tool="goalFrame"><span class="goal-icon"></span><span id="toolLabelGoalFrame">ゴール枠</span></button>
-
-          <button class="tool" data-tool="ball">⚽ ボール</button>
-          <button class="tool" data-tool="text">T テキスト</button>
-          <button class="tool" data-tool="line">━ 白線</button>
-          <button class="tool" data-tool="arrow">→ 矢印</button>
-          <button class="tool" data-tool="dash">⇢ 点線矢印</button>
-        </div>
-
-        <div class="hint">
-          <p>選手・用具：空いている場所をタップすると配置 / 置いた後はドラッグ移動</p>
-          <p>白線・矢印・点線矢印：ドラッグして描画 / 端点をドラッグして調整</p>
-          <p>選択中パーツ：サイズ変更・複製・削除・回転が可能</p>
-        </div>
-
-        <div class="rotation-box">
-          <p>パーツの向き <span id="rotationValue">0°</span></p>
-          <div class="rotation-actions">
-            <button id="rotateLeftBtn" type="button">↺ 左回転</button>
-            <button id="rotateRightBtn" type="button">↻ 右回転</button>
-          </div>
-        </div>
-
-        <div class="tool-actions">
-          <button id="undoBtn">一つ戻す</button>
-          <button id="clearBtn" class="danger">図をクリア</button>
-        </div>
-      </aside>
-
       <section class="board-wrap">
         <div class="board-title">
           <div>
@@ -184,6 +153,49 @@
 
         <svg id="board" viewBox="0 0 1000 640" tabindex="0"></svg>
       </section>
+
+      
+
+      <aside class="panel tools-panel">
+        <h3>配置パーツ</h3>
+        <div class="tools">
+          <button class="tool active" data-tool="attack"><span class="circle red"></span>攻撃</button>
+          <button class="tool" data-tool="defense"><span class="circle blue"></span>守備</button>
+          <button class="tool" data-tool="free"><span class="circle yellow"></span>フリー</button>
+          <button class="tool" data-tool="cone"><span class="cone"></span>コーン</button>
+          <button class="tool" data-tool="marker"><span class="marker"></span>マーカー</button>
+
+          <button class="tool" data-tool="centerLine"><span class="mini-line"></span><span id="toolLabelCenterLine">センターライン</span></button>
+          <button class="tool" data-tool="centerCircle"><span class="mini-center-circle"></span><span id="toolLabelCenterCircle">センターサークル</span></button>
+          <button class="tool" data-tool="courtArea"><span class="penalty-icon"></span><span id="toolLabelCourtArea">ペナルティエリア</span></button>
+          <button class="tool" data-tool="goalFrame"><span class="goal-icon"></span><span id="toolLabelGoalFrame">ゴール枠</span></button>
+
+          <button class="tool" data-tool="ball"><span class="ball-icon"></span><span>ボール</span></button>
+          <button class="tool" data-tool="text">T テキスト</button>
+          <button class="tool" data-tool="line"><span class="line-icon"></span><span>白線</span></button>
+          <button class="tool" data-tool="arrow"><span class="arrow-icon"></span><span>矢印</span></button>
+          <button class="tool" data-tool="dash"><span class="dash-arrow-icon"></span><span>点線矢印</span></button>
+        </div>
+
+        <div class="hint">
+          <p>選手・用具：空いている場所をタップすると配置 / 置いた後はドラッグ移動</p>
+          <p>白線・矢印・点線矢印：ドラッグして描画 / 端点をドラッグして調整</p>
+          <p>選択中パーツ：サイズ変更・複製・削除・回転が可能</p>
+        </div>
+
+        <div class="rotation-box">
+          <p>パーツの向き <span id="rotationValue">0°</span></p>
+          <div class="rotation-actions">
+            <button id="rotateLeftBtn" type="button">↺ 左回転</button>
+            <button id="rotateRightBtn" type="button">↻ 右回転</button>
+          </div>
+        </div>
+
+        <div class="tool-actions">
+          <button id="undoBtn">一つ戻す</button>
+          <button id="clearBtn" class="danger">図をクリア</button>
+        </div>
+      </aside>
 
       <aside class="panel notes-panel">
         <h3 id="noteTitle">W-upの内容</h3>
@@ -230,7 +242,8 @@
 
 
   <!-- MATCH RESULTS PAGE -->
-  <section id="resultsPage" class="page">
+  
+<section id="resultsPage" class="page">
     <section class="page-head">
       <div>
         <p class="small white">Match Result</p>
@@ -241,46 +254,66 @@
 
     <section class="panel match-form-panel">
       <input type="hidden" id="matchId">
-      <label>試合名
-        <input id="matchName" placeholder="例：TRM">
+
+      <label>試合タイプ
+        <select id="matchType">
+          <option value="official">公式戦</option>
+          <option value="trm">TRM</option>
+        </select>
       </label>
+
+      <label>試合名
+        <input id="matchName" placeholder="例：TRM / 〇〇リーグ">
+      </label>
+
       <label>対象カテゴリー
         <select id="matchCategory"></select>
       </label>
+
       <label>対戦相手
         <input id="opponentName" placeholder="例：〇〇FC">
       </label>
+
       <label>日付
         <input id="matchDate" type="date">
       </label>
 
-      <div class="score-grid">
-        <div class="score-box">
-          <h3>前半</h3>
-          <label>自チーム
-            <input id="firstOwn" type="number" min="0" value="0">
-          </label>
-          <label>相手
-            <input id="firstOpp" type="number" min="0" value="0">
+      <label id="trmCountWrap">TRM本数
+        <select id="trmCount">
+          <option value="3">3本</option>
+          <option value="4">4本</option>
+          <option value="5">5本</option>
+          <option value="6">6本</option>
+        </select>
+      </label>
+
+      <div class="wide score-config-note" id="matchScoreNote">公式戦は前半 / 後半、TRMは3〜6本のスコアを入力できます。</div>
+
+      <div id="dynamicScoreGrid" class="score-grid"></div>
+
+      <section class="wide lineup-panel">
+        <div class="lineup-head">
+          <div>
+            <h3>スタメン表示 / フォーメーション</h3>
+            <p>設定ページで登録した選手を、背番号つきでポジションに配置できます。</p>
+          </div>
+          <label>フォーメーション
+            <input id="formationInput" placeholder="例：4-4-2" value="4-4-2">
           </label>
         </div>
 
-        <div class="score-box">
-          <h3>後半</h3>
-          <label>自チーム
-            <input id="secondOwn" type="number" min="0" value="0">
-          </label>
-          <label>相手
-            <input id="secondOpp" type="number" min="0" value="0">
-          </label>
-        </div>
+        <div class="lineup-layout">
+          <section class="lineup-block">
+            <h4>スタメン設定</h4>
+            <div id="starterAssignList" class="starter-assign-list"></div>
+          </section>
 
-        <div class="score-box total-score-box">
-          <h3>合計</h3>
-          <div id="totalScore" class="total-score">0 - 0</div>
-          <p id="resultLabel" class="result-label">DRAW</p>
+          <section class="lineup-block">
+            <h4>配置プレビュー</h4>
+            <div id="formationPreview" class="formation-preview"></div>
+          </section>
         </div>
-      </div>
+      </section>
 
       <label class="wide">動画URL
         <input id="videoUrl" type="url" placeholder="YouTube / Google Drive / Hudl などのURL">
@@ -304,6 +337,59 @@
     </section>
 
     <section id="matchList" class="match-list"></section>
+  </section>
+
+
+
+  <!-- MATERIALS PAGE -->
+  <section id="materialsPage" class="page">
+    <section class="page-head">
+      <div>
+        <p class="small white">Materials</p>
+        <h2>資料</h2>
+      </div>
+      <button id="clearMaterialFormBtn" class="primary">入力クリア</button>
+    </section>
+
+    <section class="panel material-form-panel">
+      <input type="hidden" id="materialId">
+
+      <label>資料名
+        <input id="materialTitle" placeholder="例：ビルドアップ座学資料">
+      </label>
+
+      <label>対象カテゴリー
+        <select id="materialCategory"></select>
+      </label>
+
+      <label>日付
+        <input id="materialDate" type="date">
+      </label>
+
+      <label class="wide">PDF / PowerPoint
+        <input id="materialFileInput" type="file" accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+      </label>
+
+      <div id="materialFileInfo" class="wide material-file-info">ファイル未選択</div>
+
+      <label class="wide">メモ
+        <textarea id="materialMemo" rows="5" placeholder="座学の内容、使用した場面、対象学年、補足メモなど"></textarea>
+      </label>
+
+      <div class="material-actions">
+        <button id="saveMaterialBtn" class="primary">資料を保存</button>
+      </div>
+    </section>
+
+    <section class="section-title">
+      <div>
+        <p class="small white">Library</p>
+        <h2>資料一覧</h2>
+      </div>
+      <span id="materialCountBadge">0件</span>
+    </section>
+
+    <section id="materialList" class="material-list"></section>
   </section>
 
   <!-- SETTINGS PAGE -->
@@ -366,7 +452,22 @@
         <h3>対象カテゴリー</h3>
         <p>U-8、U-10、U-12など。</p>
         <textarea id="masterAges" rows="12"></textarea>
+      
+      <section class="panel master-card player-master-card">
+        <h3>選手登録</h3>
+        <p>背番号と名前を登録すると、試合結果のスタメン設定で使用できます。</p>
+        <div class="player-form-row">
+          <label>背番号
+            <input id="playerNumberInput" type="number" min="0" placeholder="例：10">
+          </label>
+          <label>名前
+            <input id="playerNameInput" placeholder="例：ENDO">
+          </label>
+          <button id="addPlayerBtn" class="primary" type="button">選手追加</button>
+        </div>
+        <div id="playerMasterList" class="player-master-list"></div>
       </section>
+
     </section>
   </section>
 </main>
