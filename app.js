@@ -52,7 +52,7 @@ function refreshMastersUI(){
   fillSelect("category", masters.categories);
   fillSelect("timePlan", masters.times);
   fillSelect("categoryFilter", masters.categories, "カテゴリーすべて");
-  fillSelect("matchCategory", masters.categories);
+  fillSelect("matchCategory", masters.ages);
   el("masterTags").value = masters.tags.join("\n");
   el("masterTimes").value = masters.times.join("\n");
   el("masterCategories").value = masters.categories.join("\n");
@@ -124,101 +124,191 @@ function pitchBase(){
   return defs + `<rect x="0" y="0" width="1000" height="640" fill="#11813e"/>${stripes}`;
 }
 
-function player(x,y,color,label,text="#fff"){return `<g><circle cx="${x}" cy="${y}" r="24" fill="${color}" stroke="#fff" stroke-width="5"/><text x="${x}" y="${y+7}" text-anchor="middle" font-size="20" font-weight="900" fill="${text}">${label}</text></g>`;}
-function cone(x,y){return `<g><path d="M${x} ${y-28} L${x-24} ${y+24} L${x+24} ${y+24} Z" fill="#ff7a00" stroke="#fff" stroke-width="4"/><line x1="${x-13}" y1="${y}" x2="${x+13}" y2="${y}" stroke="#fff" stroke-width="4"/></g>`;}
-function marker(x,y){return `<circle cx="${x}" cy="${y}" r="15" fill="#ffea00" stroke="#17351f" stroke-width="4"/>`;}
-function centerLineObj(x,y,r=0){
+
+function defaultScale(type){
+  const map = {attack:1,defense:1,free:1,cone:1,marker:1,centerLine:1,centerCircle:1,courtArea:1,goalFrame:1,goal:1,penalty:1,ball:1,text:1,line:1,arrow:1,dash:1};
+  return map[type] || 1;
+}
+function isLineType(type){ return ["line","arrow","dash"].includes(type); }
+function currentObjects(){ return draft.parts[activePart].objects; }
+let selectedObjectId = null;
+let interaction = null;
+
+function ensureObjectDefaults(o){
+  if(!o.id) o.id = uid();
+  if(o.r == null) o.r = 0;
+  if(o.s == null) o.s = defaultScale(o.type);
+  if(o.type === "goal") o.type = "goalFrame";
+  if(o.type === "penalty") o.type = "courtArea";
+  return o;
+}
+function normalizeCurrentObjects(){ currentObjects().forEach(ensureObjectDefaults); }
+function getObjectById(id){ normalizeCurrentObjects(); return currentObjects().find(o => o.id === id); }
+function getSelectedObject(){ return selectedObjectId ? getObjectById(selectedObjectId) : null; }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function rotNorm(v){ return ((v % 360) + 360) % 360; }
+
+function playerShape(x,y,color,label,text="#fff",s=1){
+  const r = 24*s, sw = Math.max(2, 5*s), fs = Math.max(12, 20*s);
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" stroke="#fff" stroke-width="${sw}"/><text x="${x}" y="${y + 0.3*fs}" text-anchor="middle" font-size="${fs}" font-weight="900" fill="${text}">${label}</text>`;
+}
+function coneShape(x,y,s=1){
+  const h = 28*s, w = 24*s, sw = Math.max(2,4*s), lw = 13*s;
+  return `<path d="M${x} ${y-h} L${x-w} ${y+w} L${x+w} ${y+w} Z" fill="#ff7a00" stroke="#fff" stroke-width="${sw}"/><line x1="${x-lw}" y1="${y}" x2="${x+lw}" y2="${y}" stroke="#fff" stroke-width="${sw}"/>`;
+}
+function markerShape(x,y,s=1){
+  const r = 15*s, sw = Math.max(2,4*s);
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffea00" stroke="#17351f" stroke-width="${sw}"/>`;
+}
+function centerLineShape(x,y,r=0,s=1){
+  const len = 260*s, sw = Math.max(3, 7*s);
+  return `<g transform="rotate(${r} ${x} ${y})"><line x1="${x}" y1="${y-len}" x2="${x}" y2="${y+len}" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"/></g>`;
+}
+function centerCircleShape(x,y,r=0,s=1){
+  const rr = 76*s, sw = Math.max(3,7*s), dot = Math.max(4,6*s);
+  return `<g transform="rotate(${r} ${x} ${y})"><circle cx="${x}" cy="${y}" r="${rr}" fill="none" stroke="#fff" stroke-width="${sw}"/><circle cx="${x}" cy="${y}" r="${dot}" fill="#fff"/></g>`;
+}
+function goalFrameShape(x,y,r=0,s=1){
+  const w = 108*s, h = 48*s, sw = Math.max(3,7*s), inner = Math.max(2,3*s);
   return `<g transform="rotate(${r} ${x} ${y})">
-    <line x1="${x}" y1="${y-260}" x2="${x}" y2="${y+260}" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+    <rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${6*s}" fill="none" stroke="#fff" stroke-width="${sw}"/>
+    <line x1="${x-42*s}" y1="${y-10*s}" x2="${x+42*s}" y2="${y-10*s}" stroke="#fff" stroke-width="${inner}" opacity=".65"/>
+    <line x1="${x-42*s}" y1="${y+10*s}" x2="${x+42*s}" y2="${y+10*s}" stroke="#fff" stroke-width="${inner}" opacity=".65"/>
+    <line x1="${x-18*s}" y1="${y-22*s}" x2="${x-18*s}" y2="${y+22*s}" stroke="#fff" stroke-width="${inner}" opacity=".65"/>
+    <line x1="${x+18*s}" y1="${y-22*s}" x2="${x+18*s}" y2="${y+22*s}" stroke="#fff" stroke-width="${inner}" opacity=".65"/>
   </g>`;
 }
-function centerCircleObj(x,y,r=0){
+function soccerPenaltyShape(x,y,r=0,s=1){
+  const sw1 = Math.max(3,7*s), sw2 = Math.max(2,5*s);
   return `<g transform="rotate(${r} ${x} ${y})">
-    <circle cx="${x}" cy="${y}" r="76" fill="none" stroke="#fff" stroke-width="7"/>
-    <circle cx="${x}" cy="${y}" r="6" fill="#fff"/>
+    <rect x="${x-90*s}" y="${y-130*s}" width="${180*s}" height="${260*s}" fill="none" stroke="#fff" stroke-width="${sw1}"/>
+    <rect x="${x-90*s}" y="${y-66*s}" width="${62*s}" height="${132*s}" fill="none" stroke="#fff" stroke-width="${sw2}"/>
+    <path d="M ${x+34*s} ${y-52*s} A ${70*s} ${70*s} 0 0 1 ${x+34*s} ${y+52*s}" fill="none" stroke="#fff" stroke-width="${sw2}"/>
+    <circle cx="${x}" cy="${y}" r="${Math.max(4,6*s)}" fill="#fff"/>
   </g>`;
 }
-function goalFrameObj(x,y,r=0){
+function futsalGoalAreaShape(x,y,r=0,s=1){
+  const sw1 = Math.max(3,7*s), sw2 = Math.max(2,5*s);
   return `<g transform="rotate(${r} ${x} ${y})">
-    <rect x="${x-54}" y="${y-24}" width="108" height="48" rx="6" fill="none" stroke="#fff" stroke-width="7"/>
-    <line x1="${x-42}" y1="${y-10}" x2="${x+42}" y2="${y-10}" stroke="#fff" stroke-width="3" opacity=".65"/>
-    <line x1="${x-42}" y1="${y+10}" x2="${x+42}" y2="${y+10}" stroke="#fff" stroke-width="3" opacity=".65"/>
-    <line x1="${x-18}" y1="${y-22}" x2="${x-18}" y2="${y+22}" stroke="#fff" stroke-width="3" opacity=".65"/>
-    <line x1="${x+18}" y1="${y-22}" x2="${x+18}" y2="${y+22}" stroke="#fff" stroke-width="3" opacity=".65"/>
+    <line x1="${x-4*s}" y1="${y-120*s}" x2="${x-4*s}" y2="${y+120*s}" stroke="#fff" stroke-width="${sw1}" stroke-linecap="round"/>
+    <path d="M ${x-4*s} ${y-120*s} A ${120*s} ${120*s} 0 0 1 ${x-4*s} ${y+120*s}" fill="none" stroke="#fff" stroke-width="${sw1}"/>
+    <rect x="${x-8*s}" y="${y-48*s}" width="${36*s}" height="${96*s}" fill="none" stroke="#fff" stroke-width="${sw2}"/>
+    <circle cx="${x+88*s}" cy="${y}" r="${Math.max(3,5*s)}" fill="#fff"/>
   </g>`;
 }
-function soccerPenaltyObj(x,y,r=0){
-  return `<g transform="rotate(${r} ${x} ${y})">
-    <rect x="${x-90}" y="${y-130}" width="180" height="260" fill="none" stroke="#fff" stroke-width="7"/>
-    <rect x="${x-90}" y="${y-66}" width="62" height="132" fill="none" stroke="#fff" stroke-width="5"/>
-    <path d="M ${x+34} ${y-52} A 70 70 0 0 1 ${x+34} ${y+52}" fill="none" stroke="#fff" stroke-width="5"/>
-    <circle cx="${x}" cy="${y}" r="6" fill="#fff"/>
-  </g>`;
-}
-function futsalGoalAreaObj(x,y,r=0){
-  return `<g transform="rotate(${r} ${x} ${y})">
-    <line x1="${x-4}" y1="${y-120}" x2="${x-4}" y2="${y+120}" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
-    <path d="M ${x-4} ${y-120} A 120 120 0 0 1 ${x-4} ${y+120}" fill="none" stroke="#fff" stroke-width="7"/>
-    <rect x="${x-8}" y="${y-48}" width="36" height="96" fill="none" stroke="#fff" stroke-width="5"/>
-    <circle cx="${x+88}" cy="${y}" r="5" fill="#fff"/>
-  </g>`;
-}
-function courtAreaObj(x,y,r=0){
+function courtAreaShape(x,y,r=0,s=1){
   const type = masters.surfaceType || "soccer";
-  return type === "futsal" ? futsalGoalAreaObj(x,y,r) : soccerPenaltyObj(x,y,r);
+  return type === "futsal" ? futsalGoalAreaShape(x,y,r,s) : soccerPenaltyShape(x,y,r,s);
 }
-function goalObj(x,y,r=0){ return goalFrameObj(x,y,r); }
-function penaltyObj(x,y,r=0){ return courtAreaObj(x,y,r); }
-
-function ball(x,y){return `<g><circle cx="${x}" cy="${y}" r="15" fill="#fff" stroke="#111" stroke-width="4"/><circle cx="${x}" cy="${y}" r="4" fill="#111"/></g>`;}
-function textObj(x,y,text){
+function ballShape(x,y,s=1){
+  const rr = 15*s, sw = Math.max(2,4*s), ir = Math.max(3,4*s);
+  return `<circle cx="${x}" cy="${y}" r="${rr}" fill="#fff" stroke="#111" stroke-width="${sw}"/><circle cx="${x}" cy="${y}" r="${ir}" fill="#111"/>`;
+}
+function textShape(x,y,text,s=1){
   const safe = esc(text);
+  const fs = Math.max(16, 26*s);
+  const w = Math.max(72*s, safe.length * fs * 0.62 + 24*s);
+  const h = Math.max(34*s, 38*s);
   return `<g>
-    <rect x="${x-8}" y="${y-30}" width="${Math.max(60, safe.length*18+16)}" height="38" rx="10" fill="rgba(0,0,0,.42)" stroke="#fff" stroke-width="2"/>
-    <text x="${x}" y="${y-5}" font-size="26" font-weight="900" fill="#fff">${safe}</text>
+    <rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${10*s}" fill="rgba(0,0,0,.42)" stroke="#fff" stroke-width="${Math.max(2,2*s)}"/>
+    <text x="${x}" y="${y + fs*0.18}" text-anchor="middle" font-size="${fs}" font-weight="900" fill="#fff">${safe}</text>
   </g>`;
 }
-function objectsSvg(list){return (list||[]).map(o=>{
-  if(o.type==="attack")return player(o.x,o.y,"#e53935","A");
-  if(o.type==="defense")return player(o.x,o.y,"#1e88e5","D");
-  if(o.type==="free")return player(o.x,o.y,"#fdd835","F","#17211b");
-  if(o.type==="cone")return cone(o.x,o.y);
-  if(o.type==="marker")return marker(o.x,o.y);
-  if(o.type==="centerLine")return centerLineObj(o.x,o.y,o.r||0);
-  if(o.type==="centerCircle")return centerCircleObj(o.x,o.y,o.r||0);
-  if(o.type==="courtArea" || o.type==="penalty")return courtAreaObj(o.x,o.y,o.r||0);
-  if(o.type==="goalFrame" || o.type==="goal")return goalFrameObj(o.x,o.y,o.r||0);
-  if(o.type==="ball")return ball(o.x,o.y);
-  if(o.type==="text")return textObj(o.x,o.y,o.text||"テキスト");
-  if(o.type==="line")return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="#fff" stroke-width="8" stroke-linecap="round"/>`;
-  if(o.type==="arrow")return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="#fff" stroke-width="8" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
-  if(o.type==="dash")return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="#fff" stroke-width="7" stroke-dasharray="18 16" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
+function shapeSvg(o){
+  ensureObjectDefaults(o);
+  const s = o.s || 1;
+  if(o.type==="attack") return playerShape(o.x,o.y,"#e53935","A","#fff",s);
+  if(o.type==="defense") return playerShape(o.x,o.y,"#1e88e5","D","#fff",s);
+  if(o.type==="free") return playerShape(o.x,o.y,"#fdd835","F","#17211b",s);
+  if(o.type==="cone") return coneShape(o.x,o.y,s);
+  if(o.type==="marker") return markerShape(o.x,o.y,s);
+  if(o.type==="centerLine") return centerLineShape(o.x,o.y,o.r||0,s);
+  if(o.type==="centerCircle") return centerCircleShape(o.x,o.y,o.r||0,s);
+  if(o.type==="courtArea") return courtAreaShape(o.x,o.y,o.r||0,s);
+  if(o.type==="goalFrame") return goalFrameShape(o.x,o.y,o.r||0,s);
+  if(o.type==="ball") return ballShape(o.x,o.y,s);
+  if(o.type==="text") return textShape(o.x,o.y,o.text||"テキスト",s);
+  if(o.type==="line") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="#fff" stroke-width="${Math.max(4, 8*(o.s||1))}" stroke-linecap="round"/>`;
+  if(o.type==="arrow") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="#fff" stroke-width="${Math.max(4, 8*(o.s||1))}" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
+  if(o.type==="dash") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="#fff" stroke-width="${Math.max(4, 7*(o.s||1))}" stroke-dasharray="${18*(o.s||1)} ${16*(o.s||1)}" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
   return "";
-}).join("");}
+}
+function objectWrapper(o){ ensureObjectDefaults(o); return `<g class="board-object" data-obj-id="${o.id}" data-type="${o.type}">${shapeSvg(o)}</g>`; }
+function objectsSvg(list){ return (list||[]).map(objectWrapper).join(""); }
 
-function renderBoard(){el("board").innerHTML = pitchBase() + objectsSvg(draft.parts[activePart].objects);}
+function objectBounds(o){
+  ensureObjectDefaults(o);
+  const s = o.s || 1;
+  if(isLineType(o.type)){
+    return {x:Math.min(o.x1,o.x2)-18,y:Math.min(o.y1,o.y2)-18,w:Math.abs(o.x2-o.x1)+36,h:Math.abs(o.y2-o.y1)+36};
+  }
+  const boxes = {
+    attack:[56,56], defense:[56,56], free:[56,56], cone:[58,58], marker:[40,40], ball:[34,34],
+    centerLine:[80,540*s], centerCircle:[170*s,170*s], goalFrame:[128*s,72*s], courtArea:[220*s,300*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
+  };
+  const wh = boxes[o.type] || [70*s,70*s];
+  return {x:o.x - wh[0]/2, y:o.y - wh[1]/2, w:wh[0], h:wh[1]};
+}
+function selectionSvg(o){
+  if(!o) return "";
+  if(isLineType(o.type)){
+    const cx=(o.x1+o.x2)/2, cy=(o.y1+o.y2)/2;
+    return `<g class="selection-ui">
+      <line class="selection-line" x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}"/>
+      <circle class="sel-handle" data-handle="start" data-obj-id="${o.id}" cx="${o.x1}" cy="${o.y1}" r="13"/>
+      <circle class="sel-handle" data-handle="end" data-obj-id="${o.id}" cx="${o.x2}" cy="${o.y2}" r="13"/>
+      <circle class="sel-handle" data-handle="mid" data-obj-id="${o.id}" cx="${cx}" cy="${cy}" r="10"/>
+    </g>`;
+  }
+  const b = objectBounds(o);
+  return `<g class="selection-ui">
+    <rect class="selection-box" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12"/>
+    <circle class="sel-handle" data-handle="resize" data-obj-id="${o.id}" cx="${b.x+b.w}" cy="${b.y+b.h}" r="13"/>
+  </g>`;
+}
+function previewDrawingSvg(){
+  if(!interaction || interaction.mode !== "drawLine" || !interaction.temp) return "";
+  const o = interaction.temp;
+  const type = o.type;
+  const sw = 7;
+  if(type==="line") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="rgba(255,255,255,.82)" stroke-width="${sw}" stroke-linecap="round"/>`;
+  if(type==="arrow") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="rgba(255,255,255,.82)" stroke-width="${sw}" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
+  if(type==="dash") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="rgba(255,255,255,.82)" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="18 16" marker-end="url(#arrowHead)"/>`;
+  return "";
+}
+function selectedLabel(o){
+  return o ? `${toolLabelName(o.type)} を選択中` : "未選択";
+}
+function updateSelectionInfo(){
+  const o = getSelectedObject();
+  if(el("selectedInfo")) el("selectedInfo").textContent = selectedLabel(o);
+  if(el("boardHintLabel")){
+    el("boardHintLabel").textContent = o
+      ? "ドラッグで移動 / サイズ変更 / 複製 / 削除 / 回転"
+      : "空いている場所をタップで配置。置いた後はドラッグ移動。";
+  }
+  ["sizeDownBtn","sizeUpBtn","duplicateBtn","deleteSelectedBtn"].forEach(id=>{
+    if(el(id)) el(id).disabled = !o;
+  });
+  updateRotation();
+}
+function renderBoard(){
+  normalizeCurrentObjects();
+  const selected = getSelectedObject();
+  el("board").innerHTML = pitchBase() + objectsSvg(currentObjects()) + previewDrawingSvg() + selectionSvg(selected);
+  updateSelectionInfo();
+}
 function saveNotes(){draft.parts[activePart].organize=el("organize").value;draft.parts[activePart].rules=el("rules").value;draft.parts[activePart].coaching=el("coaching").value;}
 function loadNotes(){const p=draft.parts[activePart];el("organize").value=p.organize||"";el("rules").value=p.rules||"";el("coaching").value=p.coaching||"";el("noteTitle").textContent=partName(activePart)+"の内容";el("partName").textContent=partName(activePart);}
-function setPart(k){saveNotes();activePart=k;pending=null;document.querySelectorAll(".part").forEach(b=>b.classList.toggle("active",b.dataset.part===k));loadNotes();renderBoard();}
+function setPart(k){saveNotes();activePart=k;interaction=null;selectedObjectId=null;document.querySelectorAll(".part").forEach(b=>b.classList.toggle("active",b.dataset.part===k));loadNotes();renderBoard();}
 function toolLabelName(t){
   const isFutsal = (masters.surfaceType || "soccer") === "futsal";
   const names = {
-    attack:"攻撃",
-    defense:"守備",
-    free:"フリー",
-    cone:"コーン",
-    marker:"マーカー",
-    centerLine:"センターライン",
-    centerCircle:"センターサークル",
+    attack:"攻撃", defense:"守備", free:"フリー", cone:"コーン", marker:"マーカー",
+    centerLine:"センターライン", centerCircle:"センターサークル",
     courtArea: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
-    goalFrame:"ゴール枠",
-    goal:"ゴール枠",
-    penalty: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
-    ball:"ボール",
-    text:"テキスト",
-    line:"白線",
-    arrow:"矢印",
-    dash:"点線矢印"
+    goalFrame:"ゴール枠", goal:"ゴール枠", penalty: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
+    ball:"ボール", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印"
   };
   return names[t] || t;
 }
@@ -231,34 +321,200 @@ function renderToolPalette(){
   if(el("toolName")) el("toolName").textContent = toolLabelName(activeTool);
 }
 function setTool(t){
-  activeTool=t;pending=null;
+  activeTool=t; interaction=null;
   document.querySelectorAll(".tool").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));
   el("toolName").textContent=toolLabelName(t);
 }
-
 function updateRotation(){
-  currentRotation = ((currentRotation % 360) + 360) % 360;
-  el("rotationValue").textContent = currentRotation + "°";
+  const o = getSelectedObject();
+  const value = o ? rotNorm(o.r || 0) : rotNorm(currentRotation);
+  if(el("rotationValue")) el("rotationValue").textContent = value + "°";
 }
 function rotateCurrent(delta){
-  currentRotation += delta;
-  updateRotation();
+  const o = getSelectedObject();
+  if(o){
+    o.r = (o.r || 0) + delta;
+    renderBoard();
+  }else{
+    currentRotation += delta;
+    updateRotation();
+  }
 }
-function boardPoint(evt){const r=el("board").getBoundingClientRect();return {x:Math.round((evt.clientX-r.left)/r.width*1000),y:Math.round((evt.clientY-r.top)/r.height*640)};}
-function addToBoard(evt){const p=boardPoint(evt);const arr=draft.parts[activePart].objects;if(["line","arrow","dash"].includes(activeTool)){if(!pending){pending=p;toast("終点をタップ");return;}arr.push({id:uid(),type:activeTool,x1:pending.x,y1:pending.y,x2:p.x,y2:p.y});pending=null;}else{
-    if(activeTool==="text"){
-      const value = prompt("挿入するテキストを入力してください", "ポイント");
-      if(!value) return;
-      arr.push({id:uid(),type:activeTool,x:p.x,y:p.y,text:value,r:currentRotation});
-    }else{
-      arr.push({id:uid(),type:activeTool,x:p.x,y:p.y,r:currentRotation});
+function boardPoint(evt){
+  const r = el("board").getBoundingClientRect();
+  const cx = evt.clientX ?? (evt.touches && evt.touches[0] && evt.touches[0].clientX) ?? 0;
+  const cy = evt.clientY ?? (evt.touches && evt.touches[0] && evt.touches[0].clientY) ?? 0;
+  return {x:Math.round((cx-r.left)/r.width*1000), y:Math.round((cy-r.top)/r.height*640)};
+}
+function createObjectAt(p){
+  let obj;
+  if(activeTool==="text"){
+    const value = prompt("挿入するテキストを入力してください", "ポイント");
+    if(!value) return null;
+    obj = {id:uid(), type:"text", x:p.x, y:p.y, text:value, r:currentRotation, s:1};
+  }else{
+    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1};
+  }
+  ensureObjectDefaults(obj);
+  currentObjects().push(obj);
+  selectedObjectId = obj.id;
+  return obj;
+}
+function moveObjectBy(o, dx, dy, base){
+  if(isLineType(o.type)){
+    o.x1 = base.x1 + dx; o.y1 = base.y1 + dy; o.x2 = base.x2 + dx; o.y2 = base.y2 + dy;
+  }else{
+    o.x = base.x + dx; o.y = base.y + dy;
+  }
+}
+function scaleSelectedObject(o, factor){
+  if(!o) return;
+  factor = clamp(factor, 0.4, 3);
+  if(isLineType(o.type)){
+    const cx = (o.x1 + o.x2) / 2, cy = (o.y1 + o.y2) / 2;
+    o.x1 = cx + (o.x1 - cx) * factor;
+    o.y1 = cy + (o.y1 - cy) * factor;
+    o.x2 = cx + (o.x2 - cx) * factor;
+    o.y2 = cy + (o.y2 - cy) * factor;
+  }else{
+    o.s = clamp((o.s || 1) * factor, 0.45, 3);
+  }
+}
+function boardPointerDown(evt){
+  evt.preventDefault();
+  normalizeCurrentObjects();
+  const p = boardPoint(evt);
+  const handle = evt.target.closest("[data-handle]");
+  const objEl = evt.target.closest("[data-obj-id]");
+  if(handle){
+    const id = handle.getAttribute("data-obj-id");
+    selectedObjectId = id;
+    interaction = {mode:"handle", handle:handle.getAttribute("data-handle"), objectId:id, start:p, snapshot:clone(getObjectById(id))};
+    if(el("board").setPointerCapture) el("board").setPointerCapture(evt.pointerId);
+    renderBoard();
+    return;
+  }
+  if(objEl){
+    const id = objEl.getAttribute("data-obj-id");
+    selectedObjectId = id;
+    interaction = {mode:"move", objectId:id, start:p, snapshot:clone(getObjectById(id))};
+    if(el("board").setPointerCapture) el("board").setPointerCapture(evt.pointerId);
+    renderBoard();
+    return;
+  }
+  selectedObjectId = null;
+  if(isLineType(activeTool)){
+    interaction = {mode:"drawLine", temp:{id:uid(), type:activeTool, x1:p.x, y1:p.y, x2:p.x, y2:p.y, s:1}};
+    if(el("board").setPointerCapture) el("board").setPointerCapture(evt.pointerId);
+    renderBoard();
+    return;
+  }
+  const obj = createObjectAt(p);
+  if(!obj){ renderBoard(); return; }
+  interaction = {mode:"move", objectId:obj.id, start:p, snapshot:clone(obj), created:true};
+  if(el("board").setPointerCapture) el("board").setPointerCapture(evt.pointerId);
+  renderBoard();
+}
+function boardPointerMove(evt){
+  if(!interaction) return;
+  const p = boardPoint(evt);
+  if(interaction.mode === "drawLine"){
+    interaction.temp.x2 = p.x; interaction.temp.y2 = p.y;
+    renderBoard();
+    return;
+  }
+  const o = getObjectById(interaction.objectId);
+  if(!o) return;
+  if(interaction.mode === "move"){
+    const dx = p.x - interaction.start.x, dy = p.y - interaction.start.y;
+    moveObjectBy(o, dx, dy, interaction.snapshot);
+    renderBoard();
+    return;
+  }
+  if(interaction.mode === "handle"){
+    if(isLineType(o.type)){
+      if(interaction.handle === "start"){
+        o.x1 = p.x; o.y1 = p.y;
+      }else if(interaction.handle === "end"){
+        o.x2 = p.x; o.y2 = p.y;
+      }else if(interaction.handle === "mid"){
+        const dx = p.x - interaction.start.x, dy = p.y - interaction.start.y;
+        moveObjectBy(o, dx, dy, interaction.snapshot);
+      }
+    }else if(interaction.handle === "resize"){
+      const cx = interaction.snapshot.x, cy = interaction.snapshot.y;
+      const startDist = Math.max(20, Math.hypot(interaction.start.x - cx, interaction.start.y - cy));
+      const nowDist = Math.max(20, Math.hypot(p.x - cx, p.y - cy));
+      const factor = nowDist / startDist;
+      o.s = clamp((interaction.snapshot.s || 1) * factor, 0.45, 3);
     }
-  }renderBoard();}
+    renderBoard();
+  }
+}
+function boardPointerUp(evt){
+  if(!interaction) return;
+  if(interaction.mode === "drawLine"){
+    const t = interaction.temp;
+    const len = Math.hypot(t.x2 - t.x1, t.y2 - t.y1);
+    if(len >= 10){
+      currentObjects().push(t);
+      selectedObjectId = t.id;
+    }else{
+      toast("ドラッグして描画してください");
+    }
+  }
+  interaction = null;
+  renderBoard();
+}
+function boardDoubleClick(evt){
+  const objEl = evt.target.closest("[data-obj-id]");
+  if(!objEl) return;
+  const o = getObjectById(objEl.getAttribute("data-obj-id"));
+  if(o && o.type === "text"){
+    const value = prompt("テキストを編集", o.text || "");
+    if(value !== null){
+      o.text = value;
+      renderBoard();
+    }
+  }
+}
+function addToBoard(evt){ boardPointerDown(evt); }
+function deleteSelectedObject(){
+  if(!selectedObjectId) return;
+  draft.parts[activePart].objects = currentObjects().filter(o => o.id !== selectedObjectId);
+  selectedObjectId = null;
+  renderBoard();
+}
+function duplicateSelectedObject(){
+  const o = getSelectedObject();
+  if(!o) return;
+  const c = clone(o);
+  c.id = uid();
+  if(isLineType(c.type)){
+    c.x1 += 24; c.y1 += 24; c.x2 += 24; c.y2 += 24;
+  }else{
+    c.x += 24; c.y += 24;
+  }
+  currentObjects().push(c);
+  selectedObjectId = c.id;
+  renderBoard();
+}
+function adjustSelectedSize(mult){
+  const o = getSelectedObject();
+  if(!o) return;
+  if(isLineType(o.type)){
+    const factor = mult > 1 ? 1.1 : 0.9;
+    scaleSelectedObject(o, factor);
+  }else{
+    o.s = clamp((o.s || 1) * (mult > 1 ? 1.1 : 0.9), 0.45, 3);
+  }
+  renderBoard();
+}
 
 function readMeta(){draft.title=el("planTitle").value.trim();draft.age=el("age").value;draft.category=el("category").value;draft.timePlan=el("timePlan").value;draft.tags=el("tags").value.trim();draft.updatedAt=new Date().toISOString();}
 function fillMeta(){el("planTitle").value=draft.title||"";el("age").value=draft.age||masters.ages[0];el("category").value=draft.category||masters.categories[0];el("timePlan").value=draft.timePlan||masters.times[0];el("tags").value=draft.tags||"";}
-function newSession(){draft=emptySession();activePart="wup";fillMeta();setPart("wup");el("editorMode").textContent="指導案作成ページ";page("createPage");}
-function editSession(id){const s=sessions.find(x=>x.id===id);if(!s)return;draft=clone(s);activePart="wup";fillMeta();setPart("wup");el("editorMode").textContent="指導案編集ページ";page("createPage");}
+function newSession(){draft=emptySession();activePart="wup";selectedObjectId=null;interaction=null;fillMeta();setPart("wup");el("editorMode").textContent="指導案作成ページ";page("createPage");}
+function editSession(id){const s=sessions.find(x=>x.id===id);if(!s)return;draft=clone(s);activePart="wup";selectedObjectId=null;interaction=null;fillMeta();setPart("wup");el("editorMode").textContent="指導案編集ページ";page("createPage");}
 function saveDraft(){saveNotes();readMeta();if(!draft.title){toast("タイトルを入力してください");return;}const i=sessions.findIndex(x=>x.id===draft.id);if(i>=0)sessions[i]=clone(draft);else sessions.unshift(clone(draft));saveAll();renderAll();page("homePage");toast("保存しました");}
 function copySession(id){const s=sessions.find(x=>x.id===id);if(!s)return;const c=clone(s);c.id=uid();c.title=(c.title||"無題")+" コピー";c.createdAt=new Date().toISOString();c.updatedAt=new Date().toISOString();sessions.unshift(c);saveAll();renderAll();toast("コピーしました");}
 function deleteSession(id){if(!confirm("削除しますか？"))return;sessions=sessions.filter(x=>x.id!==id);saveAll();renderAll();}
@@ -347,8 +603,10 @@ function updateMatchTotal(){
 function clearMatchForm(){
   el("matchId").value = "";
   el("matchName").value = "TRM";
-  el("matchCategory").value = masters.categories[0] || "攻撃";
+  el("matchCategory").value = masters.ages[0] || "U-12";
+  el("opponentName").value = "";
   el("matchDate").value = todayISO();
+  el("videoUrl").value = "";
   el("firstOwn").value = 0;
   el("firstOpp").value = 0;
   el("secondOwn").value = 0;
@@ -365,7 +623,9 @@ function readMatchForm(){
     id: el("matchId").value || uid(),
     name: el("matchName").value.trim() || "TRM",
     category: el("matchCategory").value || "",
+    opponent: el("opponentName").value.trim(),
     date: el("matchDate").value || todayISO(),
+    videoUrl: el("videoUrl").value.trim(),
     firstOwn,
     firstOpp,
     secondOwn,
@@ -391,8 +651,10 @@ function editMatch(id){
   if(!m) return;
   el("matchId").value = m.id;
   el("matchName").value = m.name || "TRM";
-  el("matchCategory").value = m.category || masters.categories[0] || "";
+  el("matchCategory").value = m.category || masters.ages[0] || "";
+  el("opponentName").value = m.opponent || "";
   el("matchDate").value = m.date || todayISO();
+  el("videoUrl").value = m.videoUrl || "";
   el("firstOwn").value = m.firstOwn ?? 0;
   el("firstOpp").value = m.firstOpp ?? 0;
   el("secondOwn").value = m.secondOwn ?? 0;
@@ -416,9 +678,10 @@ function renderMatches(){
     <article class="match-card" data-match-id="${m.id}">
       <div class="match-card-head">
         <div>
-          <h3>${esc(m.name || "TRM")}</h3>
+          <h3>${esc(m.name || "TRM")}${m.opponent ? ` vs ${esc(m.opponent)}` : ""}</h3>
           <div class="badges">
-            <span class="badge">${esc(m.category || "-")}</span>
+            <span class="badge">対象 ${esc(m.category || "-")}</span>
+            ${m.opponent ? `<span class="badge">相手 ${esc(m.opponent)}</span>` : ""}
             <span class="badge">${esc(m.date || "-")}</span>
             <span class="badge">${resultText(m)}</span>
           </div>
@@ -430,6 +693,7 @@ function renderMatches(){
         <span class="badge">後半 ${m.secondOwn} - ${m.secondOpp}</span>
         <span class="badge">合計 ${m.totalOwn} - ${m.totalOpp}</span>
       </div>
+      ${m.videoUrl ? `<a class="video-link" href="${esc(m.videoUrl)}" target="_blank" rel="noopener noreferrer">動画を開く</a>` : ""}
       ${m.memo ? `<div class="match-memo">${esc(m.memo)}</div>` : ""}
       <div class="card-actions">
         <button data-match-act="edit">編集</button>
@@ -467,7 +731,21 @@ document.addEventListener("DOMContentLoaded",()=>{
   el("homeCreateBtn").onclick=newSession; el("goSearchBtn").onclick=()=>page("searchPage"); el("homeSearchBtn").onclick=()=>page("searchPage"); el("homeResultsBtn").onclick=()=>page("resultsPage");
   el("settingsOpenBtn").onclick=()=>page("settingsPage"); el("syncOpenBtn").onclick=openSync;
   el("newBlankBtn").onclick=newSession; el("saveBtn").onclick=saveDraft;
-  el("board").onclick=addToBoard; el("undoBtn").onclick=()=>{draft.parts[activePart].objects.pop();renderBoard();}; el("clearBtn").onclick=()=>{if(confirm("図をクリアしますか？")){draft.parts[activePart].objects=[];renderBoard();}};
+  el("board").addEventListener("pointerdown", boardPointerDown);
+  el("board").addEventListener("pointermove", boardPointerMove);
+  el("board").addEventListener("pointerup", boardPointerUp);
+  el("board").addEventListener("pointercancel", boardPointerUp);
+  el("board").addEventListener("dblclick", boardDoubleClick);
+  el("undoBtn").onclick=()=>{
+    if(selectedObjectId){ deleteSelectedObject(); return; }
+    draft.parts[activePart].objects.pop();
+    renderBoard();
+  };
+  el("clearBtn").onclick=()=>{if(confirm("図をクリアしますか？")){draft.parts[activePart].objects=[];selectedObjectId=null;interaction=null;renderBoard();}};
+  el("sizeDownBtn").onclick=()=>adjustSelectedSize(0.9);
+  el("sizeUpBtn").onclick=()=>adjustSelectedSize(1.1);
+  el("duplicateBtn").onclick=duplicateSelectedObject;
+  el("deleteSelectedBtn").onclick=deleteSelectedObject;
   el("rotateLeftBtn").onclick=()=>rotateCurrent(-45);
   el("rotateRightBtn").onclick=()=>rotateCurrent(45);
   document.querySelectorAll(".part").forEach(b=>b.onclick=()=>setPart(b.dataset.part)); document.querySelectorAll(".tool").forEach(b=>b.onclick=()=>setTool(b.dataset.tool));

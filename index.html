@@ -141,9 +141,9 @@
         </div>
 
         <div class="hint">
-          <p>選手・用具：ピッチを1回タップ</p>
-          <p>線・矢印：開始点→終点をタップ</p>
-          <p>コートパーツ：向きを選んで配置</p>
+          <p>選手・用具：空いている場所をタップすると配置 / 置いた後はドラッグ移動</p>
+          <p>白線・矢印・点線矢印：ドラッグして描画 / 端点をドラッグして調整</p>
+          <p>選択中パーツ：サイズ変更・複製・削除・回転が可能</p>
         </div>
 
         <div class="rotation-box">
@@ -168,6 +168,20 @@
           </div>
           <span id="toolName">攻撃</span>
         </div>
+
+        <div class="edit-toolbar">
+          <div class="edit-status">
+            <strong id="selectedInfo">未選択</strong>
+            <span id="boardHintLabel">配置後はドラッグ移動。線・矢印はドラッグ描画。</span>
+          </div>
+          <div class="edit-actions">
+            <button id="sizeDownBtn" type="button">－ 小さく</button>
+            <button id="sizeUpBtn" type="button">＋ 大きく</button>
+            <button id="duplicateBtn" type="button">複製</button>
+            <button id="deleteSelectedBtn" type="button" class="danger">削除</button>
+          </div>
+        </div>
+
         <svg id="board" viewBox="0 0 1000 640" tabindex="0"></svg>
       </section>
 
@@ -230,8 +244,11 @@
       <label>試合名
         <input id="matchName" placeholder="例：TRM">
       </label>
-      <label>カテゴリー
+      <label>対象カテゴリー
         <select id="matchCategory"></select>
+      </label>
+      <label>対戦相手
+        <input id="opponentName" placeholder="例：〇〇FC">
       </label>
       <label>日付
         <input id="matchDate" type="date">
@@ -264,6 +281,10 @@
           <p id="resultLabel" class="result-label">DRAW</p>
         </div>
       </div>
+
+      <label class="wide">動画URL
+        <input id="videoUrl" type="url" placeholder="YouTube / Google Drive / Hudl などのURL">
+      </label>
 
       <label class="wide">メモ
         <textarea id="matchMemo" rows="5" placeholder="試合内容、良かった点、課題、次回につなげること"></textarea>

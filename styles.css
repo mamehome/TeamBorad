@@ -854,3 +854,294 @@ body[data-surface="soccer"] .top-hero{
 body[data-surface="futsal"] .top-hero{
   background: linear-gradient(135deg,#1f8fb8,#136e96);
 }
+
+
+/* TeamBoard v14 editor improvement */
+.workspace{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px;
+  grid-template-areas:
+    "board board"
+    "tools notes";
+  gap:16px;
+  align-items:start;
+}
+.tools-panel{grid-area:tools}
+.board-wrap{
+  grid-area:board;
+  background:var(--panel);
+  border-radius:30px;
+  padding:16px;
+  box-shadow:0 18px 50px rgba(0,0,0,.18);
+}
+.notes-panel{
+  grid-area:notes;
+  display:grid;
+  gap:12px;
+}
+.tools{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.tool{
+  min-height:52px;
+  padding:10px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:9px;
+  border-radius:14px;
+  box-shadow:none;
+  border:1px solid rgba(10,60,30,.13);
+}
+.board-title{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
+.edit-toolbar{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+  padding:12px 14px;
+  border-radius:18px;
+  background:rgba(5,50,24,.08);
+}
+.edit-status{
+  display:grid;
+  gap:4px;
+}
+.edit-status strong{
+  font-size:14px;
+}
+.edit-status span{
+  font-size:12px;
+  color:var(--muted);
+}
+.edit-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.edit-actions button{
+  border-radius:12px;
+  padding:10px 12px;
+}
+#board{
+  width:100%;
+  height:min(74vh,820px);
+  min-height:440px;
+  display:block;
+  border-radius:22px;
+  background:linear-gradient(135deg,#11813e,#09562b);
+  touch-action:none;
+  user-select:none;
+}
+body[data-surface="futsal"] #board{
+  background:linear-gradient(135deg,#1f8fb8,#136e96);
+}
+.selection-box{
+  fill:rgba(255,255,255,.03);
+  stroke:#ffe46b;
+  stroke-width:4;
+  stroke-dasharray:12 10;
+  pointer-events:none;
+}
+.selection-line{
+  stroke:#ffe46b;
+  stroke-width:6;
+  stroke-dasharray:12 10;
+  pointer-events:none;
+}
+.sel-handle{
+  fill:#ffe46b;
+  stroke:#102015;
+  stroke-width:3;
+  cursor:pointer;
+}
+.board-object{
+  cursor:grab;
+}
+.board-object:active{
+  cursor:grabbing;
+}
+.helper-label{
+  font-size:18px;
+  font-weight:900;
+  fill:#102015;
+}
+.tool-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.preview-svg{
+  background:none;
+}
+@media(max-width:1180px){
+  .workspace{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "board"
+      "tools"
+      "notes";
+  }
+  #board{
+    height:58vh;
+    min-height:360px;
+  }
+}
+@media(max-width:760px){
+  .tools{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .edit-toolbar{
+    flex-direction:column;
+  }
+  #board{
+    height:54vh;
+    min-height:340px;
+  }
+}
+
+/* TeamBoard v15 match result additions */
+.match-form-panel {
+  grid-template-columns: 1fr .8fr 1fr .7fr;
+}
+.video-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #102d1c;
+  color: white;
+  font-weight: 900;
+  text-decoration: none;
+}
+.video-link:hover {
+  opacity: .86;
+}
+@media(max-width:1180px){
+  .match-form-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media(max-width:760px){
+  .match-form-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* TeamBoard v16 layout adjustment
+   作成図を中央の大きなコンテナに置き、配置パーツを作成図の下へ移動。
+   配置パーツは現在のサイズ感を維持し、下方向に伸びてもOKの構成。
+*/
+#createPage .workspace{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr);
+  grid-template-areas:
+    "board"
+    "tools"
+    "notes";
+  gap:16px;
+  align-items:start;
+}
+#createPage .board-wrap{
+  grid-area:board;
+  width:min(1280px, 100%);
+  margin-inline:auto;
+  padding:16px;
+}
+#createPage .tools-panel{
+  grid-area:tools;
+  width:min(1280px, 100%);
+  margin-inline:auto;
+  padding:16px;
+}
+#createPage .notes-panel{
+  grid-area:notes;
+  width:min(1280px, 100%);
+  margin-inline:auto;
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:14px;
+}
+#createPage .notes-panel h3{grid-column:1 / -1;}
+#createPage .tools-panel h3{display:flex;align-items:center;gap:10px;}
+#createPage .tools-panel h3::after{
+  content:"作成図の下で選択して、ピッチに配置";
+  font-size:12px;
+  font-weight:800;
+  color:var(--muted);
+}
+#createPage .tools{
+  grid-template-columns:repeat(auto-fill, minmax(132px, 1fr));
+  align-items:stretch;
+}
+#createPage .tool{
+  min-height:48px;
+  padding:10px 12px;
+  font-size:13px;
+}
+#createPage .hint,
+#createPage .rotation-box,
+#createPage .tool-actions{max-width:none;}
+#createPage .tools-panel{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+}
+#createPage .tools-panel .hint{margin:0;}
+#createPage .rotation-box{margin:0;}
+#createPage .tool-actions{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 180px));
+}
+#createPage #board{
+  height:min(72vh, 780px);
+  min-height:520px;
+}
+#createPage .edit-toolbar{
+  position:sticky;
+  top:68px;
+  z-index:15;
+  backdrop-filter:blur(10px);
+}
+@media(min-width:1181px){
+  #createPage .tools-panel{
+    grid-template-columns:1fr 280px 380px;
+    align-items:start;
+  }
+  #createPage .tools-panel h3{grid-column:1 / -1;}
+  #createPage .tools{grid-column:1;}
+  #createPage .hint{grid-column:2;}
+  #createPage .rotation-box,
+  #createPage .tool-actions{grid-column:3;}
+}
+@media(max-width:1180px){
+  #createPage .notes-panel{grid-template-columns:1fr;}
+  #createPage #board{height:62vh;min-height:420px;}
+  #createPage .tools{grid-template-columns:repeat(auto-fill, minmax(122px, 1fr));}
+}
+@media(max-width:760px){
+  #createPage .board-wrap,
+  #createPage .tools-panel,
+  #createPage .notes-panel{
+    width:100%;
+    padding:12px;
+  }
+  #createPage #board{height:56vh;min-height:340px;}
+  #createPage .edit-toolbar{position:static;}
+  #createPage .tools{grid-template-columns:repeat(2, minmax(0, 1fr));}
+  #createPage .tool{min-height:44px;padding:9px 10px;font-size:12px;}
+  #createPage .tool-actions{grid-template-columns:1fr 1fr;}
+  #createPage .tools-panel h3::after{display:none;}
+}
