@@ -170,7 +170,7 @@ function toast(msg){el("toast").textContent=msg;el("toast").classList.add("show"
 function emptySession(){const parts={};PARTS.forEach(([k])=>parts[k]={objects:[],organize:"",rules:"",coaching:""});return {id:uid(),title:"",age:"U-12",category:"攻撃",timePlan:"60分",tags:"",parts,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};}
 function splitTags(s){return (s||"").split(/[,\s、]+/).map(x=>x.trim()).filter(Boolean);}
 function esc(s=""){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");}
-function page(id){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));el(id).classList.add("active");document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.page===id));if(id==="resultsPage"){setTimeout(()=>renderStarterAssignments(),0);}window.scrollTo({top:0,behavior:"smooth"});}
+function page(id){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));el(id).classList.add("active");document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.page===id));window.scrollTo({top:0,behavior:"smooth"});}
 function partName(k){return PARTS.find(p=>p[0]===k)?.[1]||k;}
 
 function fillSelect(id, values, firstLabel){
@@ -275,29 +275,27 @@ function pitchBase(){
 function defaultScale(type){
   const map = {
     attack:1,defense:1,free:1,gk:1,person:1,cone:1,marker:1,ladder:1,circlePart:1,squarePart:1,hLine:1,vLine:1,
-    centerLine:1,centerCircle:1,courtArea:1,goalFrame:1,goal:1,penalty:1,ball:1,text:1,line:1,arrow:1,dash:1,zigzag:1
+    centerLine:1,centerCircle:1,courtArea:1,goalFrame:1,goal:1,penalty:1,ball:1,text:1,line:1,arrow:1,dash:1
   };
   return map[type] || 1;
 }
 function defaultColor(type){
   const map = {
-    attack:"#e53935", defense:"#1e88e5", free:"#fdd835", gk:"#8e99a5",
-    cone:"#ff7a00", marker:"#ffea00", ladder:"#ffffff",
-    circlePart:"#ffffff", squarePart:"#ffffff", hLine:"#ffffff", vLine:"#ffffff", person:"#ffffff",
+    attack:"#e53935", defense:"#1e88e5", free:"#fdd835", gk:"#9e9e9e", person: currentPartColor || "#ffffff", cone:"#ff7a00", marker:"#ffea00", ladder:"#ffb74d",
+    circlePart:"#ffffff", squarePart:"#ffffff", hLine:"#ffffff", vLine:"#ffffff",
     centerLine:"#ffffff", centerCircle:"#ffffff", courtArea:"#ffffff", goalFrame:"#ffffff",
-    line:"#ffffff", arrow:"#ffffff", dash:"#ffffff", zigzag:"#ffffff", text:"#ffffff"
+    line:"#ffffff", arrow:"#ffffff", dash:"#ffffff", text:"#ffffff"
   };
   return map[type] || currentPartColor || "#ffffff";
 }
-function isLineType(type){ return ["line","arrow","dash","zigzag"].includes(type); }
-function isColorableType(type){ return ["attack","defense","free","gk","person","cone","marker","ladder","circlePart","squarePart","hLine","vLine","centerLine","centerCircle","courtArea","goalFrame","line","arrow","dash","zigzag","text"].includes(type); }
-function isFixedColorType(type){ return ["attack","defense","free","gk"].includes(type); }
-function canChangeColor(type){ return isColorableType(type) && !isFixedColorType(type); }
-function objColor(o){
-  const type = o ? o.type : activeTool;
-  if(isFixedColorType(type)) return defaultColor(type);
-  return o && o.color ? o.color : defaultColor(type);
-}
+function isLineType(type){ return ["line","arrow","dash"].includes(type); }
+function isFixedColorType(type){ return ["attack","defense","free","gk","cone","marker","ladder"].includes(type); }
+function isColorableType(type){ return ["person","circlePart","squarePart","hLine","vLine","centerLine","centerCircle","courtArea","goalFrame","line","arrow","dash","text"].includes(type); }
+function objColor(o){ return isFixedColorType(o ? o.type : activeTool) ? defaultColor(o ? o.type : activeTool) : (o && o.color ? o.color : defaultColor(o ? o.type : activeTool)); }
+function currentObjects(){ return draft.parts[activePart].objects; }
+let selectedObjectId = null;
+let interaction = null;
+
 function ensureObjectDefaults(o){
   if(!o.id) o.id = uid();
   if(o.r == null) o.r = 0;
@@ -305,7 +303,7 @@ function ensureObjectDefaults(o){
   if(o.type === "goal") o.type = "goalFrame";
   if(o.type === "penalty") o.type = "courtArea";
   if(isFixedColorType(o.type)) o.color = defaultColor(o.type);
-  else if(isColorableType(o.type) && !o.color) o.color = defaultColor(o.type);
+  if(isColorableType(o.type) && !o.color) o.color = defaultColor(o.type);
   return o;
 }
 function normalizeCurrentObjects(){ currentObjects().forEach(ensureObjectDefaults); }
@@ -313,24 +311,6 @@ function getObjectById(id){ normalizeCurrentObjects(); return currentObjects().f
 function getSelectedObject(){ return selectedObjectId ? getObjectById(selectedObjectId) : null; }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function rotNorm(v){ return ((v % 360) + 360) % 360; }
-
-function defaultLineEndPoint(start, type){
-  const baseLen = type === "zigzag" ? 190 : 165;
-  const x1 = start && start.x != null ? start.x : 120;
-  const y1 = start && start.y != null ? start.y : 320;
-  return {x2: clamp(x1 + baseLen, 20, 980), y2: clamp(y1, 20, 620)};
-}
-function normalizeLineObject(o){
-  if(!o || !isLineType(o.type)) return o;
-  const dist = Math.hypot((o.x2 || o.x1) - o.x1, (o.y2 || o.y1) - o.y1);
-  if(dist < 12){
-    const end = defaultLineEndPoint({x:o.x1, y:o.y1}, o.type);
-    o.x2 = end.x2;
-    o.y2 = end.y2;
-  }
-  return o;
-}
-
 
 function playerShape(x,y,color,label,text="#fff",s=1,r=0){
   const bodyR = 22*s;
@@ -358,6 +338,43 @@ function simpleCircleShape(x,y,s=1,color="#ffffff"){
   const r = 28*s, sw = Math.max(2,4*s);
   return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" fill-opacity=".22" stroke="${color}" stroke-width="${sw}"/>`;
 }
+
+function ladderShape(x,y,r=0,s=1,color="#ffb74d"){
+  const w = 56*s, h = 118*s;
+  const sw = Math.max(2.5, 5*s);
+  const rung = Math.max(2, 4*s);
+  const left = x - w/2, right = x + w/2, top = y - h/2, bottom = y + h/2;
+  const rungs = [0.18,0.34,0.50,0.66,0.82].map(t=>{
+    const yy = top + h*t;
+    return `<line x1="${left}" y1="${yy}" x2="${right}" y2="${yy}" stroke="${color}" stroke-width="${rung}" stroke-linecap="round"/>`;
+  }).join("");
+  return `<g transform="rotate(${r} ${x} ${y})">
+    <line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+    <line x1="${right}" y1="${top}" x2="${right}" y2="${bottom}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+    ${rungs}
+  </g>`;
+}
+function arrowLineShape(o, dashed=false){
+  const c = objColor(o);
+  const s = o.s || 1;
+  const sw = Math.max(4, (dashed ? 7 : 8) * s);
+  const dx = (o.x2 || 0) - (o.x1 || 0);
+  const dy = (o.y2 || 0) - (o.y1 || 0);
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  const size = Math.max(18, 28*s);
+  const bx = o.x2 - ux * size;
+  const by = o.y2 - uy * size;
+  const px = -uy, py = ux;
+  const p1x = bx + px * size * .42, p1y = by + py * size * .42;
+  const p2x = bx - px * size * .42, p2y = by - py * size * .42;
+  const lineEndX = o.x2 - ux * size * .34;
+  const lineEndY = o.y2 - uy * size * .34;
+  const dashAttr = dashed ? ` stroke-dasharray="${18*s} ${16*s}"` : "";
+  return `<line x1="${o.x1}" y1="${o.y1}" x2="${lineEndX}" y2="${lineEndY}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round"${dashAttr}/>
+    <polygon points="${o.x2},${o.y2} ${p1x},${p1y} ${p2x},${p2y}" fill="${c}" stroke="${c}" stroke-width="${Math.max(1,2*s)}" stroke-linejoin="round"/>`;
+}
+
 function squarePartShape(x,y,s=1,color="#ffffff",r=0){
   const w = 58*s, h = 58*s, sw = Math.max(2,4*s);
   return `<g transform="rotate(${r} ${x} ${y})"><rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${8*s}" ry="${8*s}" fill="${color}" fill-opacity=".18" stroke="${color}" stroke-width="${sw}"/></g>`;
@@ -501,89 +518,28 @@ function ballShape(x,y,s=1){
     ${small.map(poly=>`<polygon points="${poly.map(([px,py])=>`${px},${py}`).join(" ")}" fill="none" stroke="#111" stroke-width="${Math.max(1,1.6*s)}" stroke-linejoin="round"/>`).join("")}
   </g>`;
 }
-function arrowHeadPoints(x1,y1,x2,y2,size){
-  const dx = x2 - x1, dy = y2 - y1;
-  const len = Math.hypot(dx,dy) || 1;
-  const ux = dx / len, uy = dy / len;
-  const nx = -uy, ny = ux;
-  const backX = x2 - ux * size;
-  const backY = y2 - uy * size;
-  const wing = size * 0.55;
-  return `${x2},${y2} ${backX + nx * wing},${backY + ny * wing} ${backX - nx * wing},${backY - ny * wing}`;
-}
-function straightArrowSvg(o,dashed=false,preview=false){
-  const c = objColor(o);
-  const scale = o.s || 1;
-  const sw = dashed ? Math.max(4, 7 * scale) : Math.max(4, 8 * scale);
-  const len = Math.hypot(o.x2-o.x1,o.y2-o.y1);
-  const head = Math.min(Math.max(12, 18 * scale), Math.max(10, len * 0.42));
-  const dx = o.x2 - o.x1, dy = o.y2 - o.y1;
-  const u = len ? {x:dx/len,y:dy/len} : {x:1,y:0};
-  const endX = o.x2 - u.x * (head * 0.72);
-  const endY = o.y2 - u.y * (head * 0.72);
-  const dashAttr = dashed ? ` stroke-dasharray="${preview ? "18 16" : `${18*scale} ${16*scale}`}"` : "";
-  return `<g><line x1="${o.x1}" y1="${o.y1}" x2="${endX}" y2="${endY}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round"${dashAttr}/><polygon points="${arrowHeadPoints(o.x1,o.y1,o.x2,o.y2,head)}" fill="${c}"/></g>`;
-}
-function zigzagArrowSvg(o,preview=false){
-  const c = objColor(o);
-  const scale = o.s || 1;
-  const sw = Math.max(4, 7 * scale);
-  const len = Math.hypot(o.x2-o.x1,o.y2-o.y1);
-  if(len < 2) return "";
-  const head = Math.min(Math.max(12, 18 * scale), Math.max(10, len * 0.42));
-  const ux = (o.x2-o.x1) / len, uy = (o.y2-o.y1) / len;
-  const nx = -uy, ny = ux;
-  const endX = o.x2 - ux * (head * 0.8);
-  const endY = o.y2 - uy * (head * 0.8);
-  const drawLen = Math.hypot(endX-o.x1,endY-o.y1);
-  const steps = Math.max(4, Math.min(8, Math.round(drawLen / 70)));
-  const amp = Math.min(24 * scale, Math.max(10, drawLen / 10));
-  const pts = [`${o.x1},${o.y1}`];
-  for(let i=1;i<steps;i++){
-    const t = i / steps;
-    const bx = o.x1 + (endX-o.x1) * t;
-    const by = o.y1 + (endY-o.y1) * t;
-    const off = (i % 2 ? -1 : 1) * amp;
-    pts.push(`${bx + nx * off},${by + ny * off}`);
-  }
-  pts.push(`${endX},${endY}`);
-  return `<g><polyline points="${pts.join(" ")}" fill="none" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/><polygon points="${arrowHeadPoints(endX,endY,o.x2,o.y2,head)}" fill="${c}"/></g>`;
-}
-function ladderShape(x,y,s=1,color="#ffffff",r=0){
-  const w = 108*s, h = 34*s;
-  const stroke = Math.max(3,5*s);
-  const rungStroke = Math.max(2,4*s);
-  const left = x - w/2, right = x + w/2, top = y - h/2, bottom = y + h/2;
-  let rungs = "";
-  const count = 5;
-  for(let i=1;i<=count;i++){
-    const rx = left + (w/(count+1))*i;
-    rungs += `<line x1="${rx}" y1="${top+5*s}" x2="${rx}" y2="${bottom-5*s}" stroke="${color}" stroke-width="${rungStroke}" stroke-linecap="round"/>`;
-  }
-  return `<g transform="rotate(${r} ${x} ${y})">
-    <line x1="${left}" y1="${top}" x2="${right}" y2="${top}" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"/>
-    <line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"/>
-    ${rungs}
-  </g>`;
-}
-
-function textShape(x,y,text,s=1,color="#ffffff"){
+function textShape(x,y,text,s=1){
   const safe = esc(text);
   const fs = Math.max(16, 26*s);
-  return `<text x="${x}" y="${y + fs*0.18}" text-anchor="middle" font-size="${fs}" font-weight="900" fill="${color || "#ffffff"}">${safe}</text>`;
+  const w = Math.max(72*s, safe.length * fs * 0.62 + 24*s);
+  const h = Math.max(34*s, 38*s);
+  return `<g>
+    <rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${10*s}" fill="rgba(0,0,0,.42)" stroke="#fff" stroke-width="${Math.max(2,2*s)}"/>
+    <text x="${x}" y="${y + fs*0.18}" text-anchor="middle" font-size="${fs}" font-weight="900" fill="#fff">${safe}</text>
+  </g>`;
 }
 function shapeSvg(o){
   ensureObjectDefaults(o);
   const s = o.s || 1;
   const c = objColor(o);
-  if(o.type==="attack") return playerShape(o.x,o.y,c || "#e53935","A","#fff",s,o.r||0);
-  if(o.type==="defense") return playerShape(o.x,o.y,c || "#1e88e5","D","#fff",s,o.r||0);
-  if(o.type==="free") return playerShape(o.x,o.y,c || "#fdd835","F","#17211b",s,o.r||0);
-  if(o.type==="gk") return playerShape(o.x,o.y,c || "#8e99a5","GK","#17211b",s,o.r||0);
-  if(o.type==="person") return playerShape(o.x,o.y,c || "#ffffff","","#17211b",s,o.r||0);
+  if(o.type==="attack") return playerShape(o.x,o.y,"#e53935","A","#fff",s,o.r||0);
+  if(o.type==="defense") return playerShape(o.x,o.y,"#1e88e5","D","#fff",s,o.r||0);
+  if(o.type==="free") return playerShape(o.x,o.y,"#fdd835","F","#17211b",s,o.r||0);
+  if(o.type==="gk") return playerShape(o.x,o.y,"#9e9e9e","GK","#fff",s,o.r||0);
+  if(o.type==="person") return playerShape(o.x,o.y,c || "#ffffff","人", c && c.toLowerCase()==="#fdd835" ? "#17211b" : "#fff",s,o.r||0);
   if(o.type==="cone") return coneShape(o.x,o.y,s);
-  if(o.type==="marker") return markerShape(o.x,o.y,s,c);
-  if(o.type==="ladder") return ladderShape(o.x,o.y,s,c,o.r||0);
+  if(o.type==="marker") return markerShape(o.x,o.y,s,"#ffea00");
+  if(o.type==="ladder") return ladderShape(o.x,o.y,o.r||0,s,"#ffb74d");
   if(o.type==="circlePart") return simpleCircleShape(o.x,o.y,s,c);
   if(o.type==="squarePart") return squarePartShape(o.x,o.y,s,c,o.r||0);
   if(o.type==="hLine") return hLineShape(o.x,o.y,o.r||0,s,c);
@@ -593,11 +549,10 @@ function shapeSvg(o){
   if(o.type==="courtArea") return courtAreaShape(o.x,o.y,o.r||0,s);
   if(o.type==="goalFrame") return goalFrameShape(o.x,o.y,o.r||0,s);
   if(o.type==="ball") return ballShape(o.x,o.y,s);
-  if(o.type==="text") return textShape(o.x,o.y,o.text||"テキスト",s,c || "#ffffff");
+  if(o.type==="text") return textShape(o.x,o.y,o.text||"テキスト",s);
   if(o.type==="line") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="${c}" stroke-width="${Math.max(4, 8*(o.s||1))}" stroke-linecap="round"/>`;
-  if(o.type==="arrow") return straightArrowSvg(o,false,false);
-  if(o.type==="dash") return straightArrowSvg(o,true,false);
-  if(o.type==="zigzag") return zigzagArrowSvg(o,false);
+  if(o.type==="arrow") return arrowLineShape(o,false);
+  if(o.type==="dash") return arrowLineShape(o,true);
   return "";
 }
 function objectWrapper(o){ ensureObjectDefaults(o); return `<g class="board-object" data-obj-id="${o.id}" data-type="${o.type}">${shapeSvg(o)}</g>`; }
@@ -610,14 +565,13 @@ function objectBounds(o){
     return {x:Math.min(o.x1,o.x2)-18,y:Math.min(o.y1,o.y2)-18,w:Math.abs(o.x2-o.x1)+36,h:Math.abs(o.y2-o.y1)+36};
   }
   const boxes = {
-    attack:[56*s,56*s], defense:[56*s,56*s], free:[56*s,56*s], gk:[56*s,56*s], person:[56*s,56*s],
-    cone:[58*s,58*s], marker:[40*s,40*s], ladder:[130*s,54*s],
+    attack:[56*s,56*s], defense:[56*s,56*s], free:[56*s,56*s], gk:[64*s,56*s], person:[60*s,56*s], cone:[58*s,58*s], marker:[40*s,40*s], ladder:[78*s,140*s],
     circlePart:[70*s,70*s], squarePart:[72*s,72*s], hLine:[140*s,32*s], vLine:[32*s,140*s],
     centerLine:[80*s,540*s], centerCircle:[170*s,170*s], goalFrame:[142*s,84*s], courtArea:[300*s,310*s],
     ball:[44*s,44*s], text:[Math.max(90*s,(o.text||"テキスト").length*18*s+40), 48*s]
   };
-  const [w,h] = boxes[o.type] || [64*s,64*s];
-  return {x:(o.x||0)-w/2, y:(o.y||0)-h/2, w, h};
+  const wh = boxes[o.type] || [70*s,70*s];
+  return {x:o.x - wh[0]/2, y:o.y - wh[1]/2, w:wh[0], h:wh[1]};
 }
 function selectionSvg(o){
   if(!o) return "";
@@ -637,15 +591,14 @@ function selectionSvg(o){
   </g>`;
 }
 function previewDrawingSvg(){
-  if(!interaction || interaction.mode !== "drawLine") return "";
+  if(!interaction || interaction.mode !== "drawLine" || !interaction.temp) return "";
   const o = interaction.temp;
   const type = o.type;
+  const sw = 7;
   const c = objColor(o);
-  const sw = Math.max(4, 8*(o.s||1));
   if(type==="line") return `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round"/>`;
-  if(type==="arrow") return straightArrowSvg(o,false,true);
-  if(type==="dash") return straightArrowSvg(o,true,true);
-  if(type==="zigzag") return zigzagArrowSvg(o,true);
+  if(type==="arrow") return arrowLineShape(o,false);
+  if(type==="dash") return arrowLineShape(o,true);
   return "";
 }
 function selectedLabel(o){
@@ -675,11 +628,14 @@ function saveNotes(){draft.parts[activePart].organize=el("organize").value;draft
 function loadNotes(){const p=draft.parts[activePart];el("organize").value=p.organize||"";el("rules").value=p.rules||"";el("coaching").value=p.coaching||"";el("noteTitle").textContent=partName(activePart)+"の内容";el("partName").textContent=partName(activePart);}
 function setPart(k){saveNotes();activePart=k;interaction=null;selectedObjectId=null;document.querySelectorAll(".part").forEach(b=>b.classList.toggle("active",b.dataset.part===k));loadNotes();renderBoard();}
 function toolLabelName(t){
+  const isFutsal = (masters.surfaceType || "soccer") === "futsal";
   const names = {
-    attack:"攻撃", defense:"守備", free:"フリーマン", gk:"GK", person:"人", cone:"コーン", marker:"マーカー", ladder:"ラダー",
+    attack:"攻撃", defense:"守備", free:"フリー", gk:"GK", person:"人", cone:"コーン", marker:"マーカー", ladder:"ラダー",
     circlePart:"円", squarePart:"四角", hLine:"横線", vLine:"縦線",
-    centerLine:"センターライン", centerCircle:"センターサークル", courtArea:"ペナルティエリア", goalFrame:"ゴール",
-    ball:"ボール", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印", zigzag:"ジグザグ矢印"
+    centerLine:"センターライン", centerCircle:"センターサークル",
+    courtArea: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
+    goalFrame:"ゴール", goal:"ゴール", penalty: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
+    ball:"ボール", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印"
   };
   return names[t] || t;
 }
@@ -701,18 +657,12 @@ function syncPartColorInput(){
   const input = el("partColor");
   if(!input) return;
   const o = getSelectedObject();
-  const targetType = o ? o.type : activeTool;
-  input.disabled = !canChangeColor(targetType);
-  input.value = isColorableType(targetType) ? objColor(o || {type:targetType}) : currentPartColor;
+  input.value = o && isColorableType(o.type) ? objColor(o) : currentPartColor;
+  input.disabled = !!(o && isFixedColorType(o.type));
 }
 function changePartColor(value){
-  const o = getSelectedObject();
-  const targetType = o ? o.type : activeTool;
-  if(!canChangeColor(targetType)){
-    syncPartColorInput();
-    return;
-  }
   currentPartColor = value || "#ffffff";
+  const o = getSelectedObject();
   if(o && isColorableType(o.type)){
     o.color = currentPartColor;
     renderBoard();
@@ -748,8 +698,7 @@ function createObjectAt(p){
     if(!value) return null;
     obj = {id:uid(), type:"text", x:p.x, y:p.y, text:value, r:currentRotation, s:1, color:currentPartColor};
   }else{
-    const color = isFixedColorType(activeTool) ? defaultColor(activeTool) : currentPartColor;
-    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1, color};
+    obj = {id:uid(), type:activeTool, x:p.x, y:p.y, r:currentRotation, s:1, color:isFixedColorType(activeTool) ? defaultColor(activeTool) : currentPartColor};
   }
   ensureObjectDefaults(obj);
   currentObjects().push(obj);
@@ -800,8 +749,7 @@ function boardPointerDown(evt){
   }
   selectedObjectId = null;
   if(isLineType(activeTool)){
-    const end = defaultLineEndPoint(p, activeTool);
-    interaction = {mode:"drawLine", temp:{id:uid(), type:activeTool, x1:p.x, y1:p.y, x2:end.x2, y2:end.y2, s:1, color:currentPartColor}, moved:false};
+    interaction = {mode:"drawLine", temp:{id:uid(), type:activeTool, x1:p.x, y1:p.y, x2:p.x, y2:p.y, s:1, color:currentPartColor}};
     if(el("board").setPointerCapture) el("board").setPointerCapture(evt.pointerId);
     renderBoard();
     return;
@@ -816,7 +764,6 @@ function boardPointerMove(evt){
   if(!interaction) return;
   const p = boardPoint(evt);
   if(interaction.mode === "drawLine"){
-    interaction.moved = true;
     interaction.temp.x2 = p.x; interaction.temp.y2 = p.y;
     renderBoard();
     return;
@@ -852,13 +799,14 @@ function boardPointerMove(evt){
 function boardPointerUp(evt){
   if(!interaction) return;
   if(interaction.mode === "drawLine"){
-    const t = normalizeLineObject(interaction.temp);
-    ensureObjectDefaults(t);
-    currentObjects().push(t);
-    selectedObjectId = t.id;
-    interaction = null;
-    renderBoard();
-    return;
+    const t = interaction.temp;
+    const len = Math.hypot(t.x2 - t.x1, t.y2 - t.y1);
+    if(len >= 10){
+      currentObjects().push(t);
+      selectedObjectId = t.id;
+    }else{
+      toast("ドラッグして描画してください");
+    }
   }
   interaction = null;
   renderBoard();
@@ -1411,57 +1359,55 @@ function buildFormationCoords(formationValue){
 }
 function selectedEntriesForPreview(groupKey){
   ensureLineupState();
-  const formationValue = el("formationInput") ? (el("formationInput").value || "4-4-2") : "4-4-2";
   const stateObj = currentMatchType()==="trm"
     ? (lineupState.trm[groupKey] || {})
     : (lineupState.official || {});
-  return buildFormationCoords(formationValue).map(pos=>{
+  return buildFormationCoords(el("formationInput").value).map(pos=>{
     const entry = stateObj[pos.slotId] || {};
-    return {...pos, playerId: entry.playerId || "", number: entry.number || "", name: entry.name || ""};
+    return {
+      ...pos,
+      playerId: entry.playerId || "",
+      number: entry.number || "",
+      name: entry.name || ""
+    };
   });
 }
 function formationPreviewSvg(groupKey){
   const coords = selectedEntriesForPreview(groupKey);
-  const playersSvg = coords.map(p => {
-    const hasPlayer = !!(p.number || p.name);
-    const label = hasPlayer ? (p.number || p.label) : p.label;
-    return `
-      <g transform="translate(${p.x},${p.y})">
-        <circle cx="0" cy="0" r="27" fill="${hasPlayer ? "#ffffff" : "rgba(255,255,255,.24)"}" stroke="${hasPlayer ? "#102d1c" : "rgba(255,255,255,.78)"}" stroke-width="3"/>
-        <text x="0" y="7" text-anchor="middle" font-size="${hasPlayer ? 20 : 13}" font-weight="900" fill="${hasPlayer ? "#102d1c" : "#ffffff"}">${esc(label)}</text>
-        ${hasPlayer ? `<text x="0" y="48" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">${esc(p.name || "")}</text>` : ""}
-      </g>`;
-  }).join("");
-  return `<svg viewBox="0 0 1000 640" aria-label="formation preview" preserveAspectRatio="xMidYMid meet">
-    ${formationPitchLines(currentMatchSurface())}
-    ${playersSvg}
-  </svg>`;
+  const playersSvg = coords.map(p => `
+    <g transform="translate(${p.x},${p.y})">
+      <circle cx="0" cy="0" r="27" fill="${p.number ? "#ffffff" : "rgba(255,255,255,.22)"}" stroke="#102d1c" stroke-width="3"/>
+      <text x="0" y="7" text-anchor="middle" font-size="20" font-weight="900" fill="#102d1c">${esc(p.number || p.label)}</text>
+      <text x="0" y="48" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">${esc(p.name || "")}</text>
+    </g>
+  `).join("");
+  return `
+    <svg viewBox="0 0 1000 640" aria-label="formation preview">
+      ${formationPitchLines(currentMatchSurface())}
+      ${playersSvg}
+    </svg>
+  `;
 }
 function renderFormationPreview(){
   const box = el("formationPreview");
   if(!box) return;
-  try{
-    ensureLineupState();
-    if(currentMatchType()==="trm"){
-      const keys = currentGroupKeys();
-      box.innerHTML = `<div class="preview-title">本数ごとの配置プレビュー</div>
-        <div class="trm-preview-grid">
-          ${keys.map(key => `<section class="formation-preview-card">
-            <h5>${esc(lineupGroupTitle(key))}</h5>
-            ${formationPreviewSvg(key)}
-          </section>`).join("")}
-        </div>`;
-      return;
-    }
-    box.innerHTML = `<div class="preview-title">スタメン配置プレビュー</div>
-      <div class="formation-preview-card official-preview-card">${formationPreviewSvg("official_start")}</div>`;
-  }catch(err){
-    console.error("formation preview render failed", err);
-    box.innerHTML = `<div class="preview-title">配置プレビュー</div>
-      <div class="formation-preview-card official-preview-card">
-        <svg viewBox="0 0 1000 640" aria-label="formation preview fallback" preserveAspectRatio="xMidYMid meet">${formationPitchLines("soccer")}</svg>
+  if(currentMatchType()==="trm"){
+    const keys = currentGroupKeys();
+    box.innerHTML = `<div class="preview-title">本数ごとの配置プレビュー</div>
+      <div class="trm-preview-grid">
+        ${keys.map(key => `<section class="formation-preview-card">
+          <h5>${esc(lineupGroupTitle(key))}</h5>
+          ${formationPreviewSvg(key)}
+        </section>`).join("")}
       </div>`;
+    return;
   }
+  box.innerHTML = `
+    <div class="preview-title">スタメン配置プレビュー</div>
+    <div class="formation-preview-card official-preview-card">
+      ${formationPreviewSvg("official_start")}
+    </div>
+  `;
 }
 function collectLineupFromState(){
   ensureLineupState();
