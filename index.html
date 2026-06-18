@@ -1,152 +1,80 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b6f35">
-  <title>TeamBoard</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="manifest" href="manifest.json">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TeamBoard v28 from V23</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header class="app-header">
-  <div class="brand">
-    <div class="logo" id="headerLogo">⚽</div>
-    <div>
-      <p class="small">Soccer Session Board</p>
-      <h1>TeamBoard</h1>
-    </div>
-  </div>
+  <button id="brandHomeBtn" class="brand" type="button">
+    <img id="headerLogo" src="teamboard-logo.png" alt="TeamBoard">
+    <span><strong>TeamBoard</strong><small>v28 rebuild from V23</small></span>
+  </button>
   <div class="header-actions">
-    <label class="year-switcher" aria-label="年度切替">
-      <span>年度</span>
-      <select id="yearSelector"></select>
-    </label>
-    <button id="syncOpenBtn" class="header-btn">同期</button>
-    <button id="settingsOpenBtn" class="icon-btn" aria-label="設定">⚙</button>
+    <button id="syncOpenBtn" type="button">入出力</button>
+    <button id="settingsOpenBtn" type="button" class="icon-btn">⚙</button>
   </div>
 </header>
 
-<nav class="bottom-nav" aria-label="ページ切り替え">
-  <button class="nav-btn active" data-page="homePage"><span>🏠</span><b>TOP</b></button>
-  <button class="nav-btn" data-page="createPage"><span>✏️</span><b>作成</b></button>
-  <button class="nav-btn" data-page="searchPage"><span>🔍</span><b>検索</b></button>
-  <button class="nav-btn" data-page="resultsPage"><span>📊</span><b>結果</b></button>
-  <button class="nav-btn" data-page="materialsPage"><span>📁</span><b>資料</b></button>
-  <button class="nav-btn" data-page="settingsPage"><span>⚙</span><b>設定</b></button>
-</nav>
-
 <main>
-  <!-- TOP PAGE -->
   <section id="homePage" class="page active">
-    <section class="top-hero">
-      <div class="field-lines"></div>
-      <div class="hero-content">
-        <div class="hero-logo-row">
-          <div class="team-logo-preview" id="topLogoPreview">⚽</div>
-          <div>
-            <p class="small">Team Training Library</p>
-            <h2>指導案を作る。残す。共有する。</h2>
-            <p>W-up / TR1 / TR2 / Game の4項目で、図とルールをセットで管理できます。</p>
-            <button id="homeCreateBtn" class="primary big">＋ 新規作成</button>
-          </div>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">V23 data compatible</p>
+        <h1>指導案・試合結果・資料をまとめて管理</h1>
+        <p>V23の保存データを読み込めるように、保存キーを引き継いで作り直しています。</p>
+      </div>
+      <div class="hero-actions">
+        <button id="homeCreateBtn" type="button" class="primary">指導案を作成</button>
+        <button id="homeSearchBtn" type="button">指導案を検索</button>
+        <button id="homeResultsBtn" type="button">試合結果</button>
+        <button id="homeMaterialsBtn" type="button">資料</button>
+      </div>
+    </section>
+    <section class="grid-two">
+      <section class="panel">
+        <div class="section-head"><h2>最近の指導案</h2><button id="newFromTopBtn" type="button">新規</button></div>
+        <div id="recentList" class="card-list"></div>
+      </section>
+      <section class="panel">
+        <h2>クイック操作</h2>
+        <div class="quick-grid">
+          <button type="button" data-page-jump="createPage">作成</button>
+          <button type="button" data-page-jump="searchPage">検索</button>
+          <button type="button" data-page-jump="resultsPage">試合結果</button>
+          <button type="button" data-page-jump="materialsPage">資料</button>
+          <button type="button" data-page-jump="settingsPage">設定</button>
         </div>
-      </div>
-    </section>
-
-    <section class="sync-banner" id="syncStatus">Drive未接続：端末内に保存中</section>
-
-    <section class="section-title">
-      <div>
-        <p class="small white">Recent</p>
-        <h2>最近の指導案 <span id="homeYearBadge" class="year-badge"></span></h2>
-      </div>
-      <button id="goSearchBtn">すべて見る</button>
-    </section>
-
-    <section id="recentCards" class="cards cards-compact"></section>
-
-    <section class="search-shortcut">
-      <div>
-        <p class="small">Search</p>
-        <h2>指導案を探す</h2>
-        <p>タグ、タイトル、W-up / TR1 / TR2 / Game の内容から検索できます。</p>
-      </div>
-      <button id="homeSearchBtn" class="primary">検索ページへ</button>
-    </section>
-
-    <section class="search-shortcut match-shortcut">
-      <div>
-        <p class="small">Match Result</p>
-        <h2>試合結果を記録する</h2>
-        <p>TRM・公式戦などの結果、前後半スコア、合計、メモを保存できます。</p>
-      </div>
-      <button id="homeResultsBtn" class="primary">試合結果へ</button>
-    </section>
-
-    <section class="search-shortcut material-shortcut">
-      <div>
-        <p class="small">Materials</p>
-        <h2>座学資料を保存する</h2>
-        <p>PDFやPowerPointなど、ミーティング・座学で使った資料を管理できます。</p>
-      </div>
-      <button id="homeMaterialsBtn" class="primary">資料ページへ</button>
+      </section>
     </section>
   </section>
 
-  <!-- CREATE PAGE -->
   <section id="createPage" class="page">
-    <section class="page-head">
-      <div>
-        <p class="small white">Create / Edit</p>
-        <h2 id="editorMode">指導案作成ページ</h2>
-      </div>
-      <div class="head-buttons">
-        <button id="newBlankBtn">新規</button>
-        <button id="saveBtn" class="primary">保存</button>
-      </div>
+    <section class="form-panel">
+      <input id="sessionId" type="hidden">
+      <label>タイトル<input id="title" placeholder="例：前進するサポート"></label>
+      <label>対象<select id="age"></select></label>
+      <label>分類<select id="category"></select></label>
+      <label>時間<select id="timePlan"></select></label>
+      <label class="wide">タグ<input id="tags" placeholder="例：攻撃, 前進, 少人数"></label>
     </section>
-
-    <section class="panel meta-panel">
-      <label>タイトル
-        <input id="planTitle" placeholder="例：前進するためのサポート">
-      </label>
-      <label>対象
-        <select id="age"></select>
-      </label>
-      <label>カテゴリー
-        <select id="category"></select>
-      </label>
-      <label>時間配分
-        <select id="timePlan"></select>
-      </label>
-      <label class="wide">タグ 複数可
-        <input id="tags" placeholder="例：攻撃, 前進, 少人数">
-      </label>
-    </section>
-
     <section class="part-tabs">
-      <button class="part active" data-part="wup">W-up</button>
-      <button class="part" data-part="tr1">TR1</button>
-      <button class="part" data-part="tr2">TR2</button>
-      <button class="part" data-part="game">Game</button>
+      <button type="button" class="part active" data-part="wup">W-up</button>
+      <button type="button" class="part" data-part="tr1">TR1</button>
+      <button type="button" class="part" data-part="tr2">TR2</button>
+      <button type="button" class="part" data-part="game">Game</button>
     </section>
-
     <section class="workspace">
       <section class="board-wrap">
         <div class="board-title">
-          <div>
-            <p id="partName" class="small">W-up</p>
-            <h3>作成図</h3>
-          </div>
+          <div><p id="partName" class="small">W-up</p><h3>作成図</h3></div>
           <span id="toolName">攻撃</span>
         </div>
-
         <div class="edit-toolbar">
-          <div class="edit-status">
-            <strong id="selectedInfo">未選択</strong>
-            <span id="boardHintLabel">配置後はドラッグ移動。線・矢印はドラッグ描画。</span>
-          </div>
+          <div><strong id="selectedInfo">未選択</strong><span id="boardHintLabel">配置後はドラッグ移動。線・矢印はドラッグ描画。</span></div>
           <div class="edit-actions">
             <button id="sizeDownBtn" type="button">－ 小さく</button>
             <button id="sizeUpBtn" type="button">＋ 大きく</button>
@@ -154,388 +82,149 @@
             <button id="deleteSelectedBtn" type="button" class="danger">削除</button>
           </div>
         </div>
-
         <svg id="board" viewBox="0 0 1000 640" tabindex="0"></svg>
       </section>
-
-      
-
       <aside class="panel tools-panel">
         <h3>配置パーツ</h3>
-
-        <div class="tools-section">
-          <p class="tool-section-title">選手・ボール</p>
-          <div class="tools">
-            <button class="tool active" data-tool="attack"><span class="tb-icon tb-player tb-attack"></span><span>攻撃</span></button>
-            <button class="tool" data-tool="defense"><span class="tb-icon tb-player tb-defense"></span><span>守備</span></button>
-            <button class="tool" data-tool="free"><span class="tb-icon tb-player tb-free"></span><span>フリーマン</span></button>
-            <button class="tool" data-tool="ball"><span class="tb-icon tb-ball"></span><span>ボール</span></button>
-          </div>
-        </div>
-
-        <div class="tools-section">
-          <p class="tool-section-title">マーカー・コーン</p>
-          <div class="tools">
-            <button class="tool" data-tool="cone"><span class="tb-icon tb-cone"></span><span>コーン</span></button>
-            <button class="tool" data-tool="marker"><span class="tb-icon tb-marker"></span><span>マーカー</span></button>
-          </div>
-        </div>
-
-        <div class="tools-section">
-          <p class="tool-section-title">フィールド・ライン</p>
-          <div class="tools">
-            <button class="tool" data-tool="goalFrame"><span class="tb-icon tb-goal"></span><span>ゴール枠</span></button>
-            <button class="tool" data-tool="courtArea"><span class="tb-icon tb-penalty"></span><span id="toolLabelCourtArea">ペナルティエリア</span></button>
-            <button class="tool" data-tool="centerLine"><span class="tb-icon tb-center-line"></span><span id="toolLabelCenterLine">センターライン</span></button>
-            <button class="tool" data-tool="centerCircle"><span class="tb-icon tb-center-circle"></span><span id="toolLabelCenterCircle">センターサークル</span></button>
-            <button class="tool" data-tool="shapeCircle"><span class="tb-icon tb-shape-circle"></span><span>円</span></button>
-            <button class="tool" data-tool="horizontalLine"><span class="tb-icon tb-horizontal"></span><span>横線</span></button>
-            <button class="tool" data-tool="verticalLine"><span class="tb-icon tb-vertical"></span><span>縦線</span></button>
-          </div>
-        </div>
-
-        <div class="tools-section">
-          <p class="tool-section-title">その他</p>
-          <div class="tools">
-            <button class="tool" data-tool="text"><span class="tb-icon tb-text">T</span><span>テキスト</span></button>
-            <button class="tool" data-tool="line"><span class="tb-icon tb-line"></span><span>白線</span></button>
-            <button class="tool" data-tool="arrow"><span class="tb-icon tb-arrow"></span><span>矢印</span></button>
-            <button class="tool" data-tool="dash"><span class="tb-icon tb-dash"></span><span>点線矢印</span></button>
-          </div>
-        </div>
-
-        <div class="color-box">
-          <p>パーツ色</p>
-          <div class="color-row">
-            <input id="partColor" type="color" value="#ffffff" aria-label="パーツ色">
-            <button id="applyColorBtn" type="button">選択中に適用</button>
-          </div>
-        </div>
-
-        <div class="hint">
-          <p>選手・用具：空いている場所をタップすると配置 / 置いた後はドラッグ移動</p>
-          <p>白線・矢印・点線矢印：ドラッグして描画 / 端点をドラッグして調整</p>
-          <p>円・横線・縦線：配置後にサイズ変更・色変更が可能</p>
-        </div>
-
-        <div class="rotation-box">
-          <p>向き</p>
-          <div>
-            <button id="rotateLeftBtn" type="button">↺ 左回転</button>
-            <span id="rotationValue">0°</span>
-            <button id="rotateRightBtn" type="button">右回転 ↻</button>
-          </div>
-        </div>
-
-        <div class="tool-actions">
-          <button id="undoBtn">一つ戻す</button>
-          <button id="clearBtn" class="danger">この図をクリア</button>
-        </div>
+        <div class="tools-section"><p class="tool-section-title">選手・ボール</p><div class="tools">
+          <button class="tool active" data-tool="attack" type="button"><span class="tb-icon tb-player tb-attack"></span><span>攻撃</span></button>
+          <button class="tool" data-tool="defense" type="button"><span class="tb-icon tb-player tb-defense"></span><span>守備</span></button>
+          <button class="tool" data-tool="free" type="button"><span class="tb-icon tb-player tb-free"></span><span>フリーマン</span></button>
+          <button class="tool" data-tool="ball" type="button"><span class="tb-icon tb-ball"></span><span>ボール</span></button>
+        </div></div>
+        <div class="tools-section"><p class="tool-section-title">マーカー・コーン</p><div class="tools">
+          <button class="tool" data-tool="cone" type="button"><span class="tb-icon tb-cone"></span><span>コーン</span></button>
+          <button class="tool" data-tool="marker" type="button"><span class="tb-icon tb-marker"></span><span>マーカー</span></button>
+        </div></div>
+        <div class="tools-section"><p class="tool-section-title">フィールド・ライン</p><div class="tools">
+          <button class="tool" data-tool="goalFrame" type="button"><span class="tb-icon tb-goal"></span><span>ゴール枠</span></button>
+          <button class="tool" data-tool="courtArea" type="button"><span class="tb-icon tb-penalty"></span><span id="toolLabelCourtArea">ペナルティエリア</span></button>
+          <button class="tool" data-tool="centerLine" type="button"><span class="tb-icon tb-center-line"></span><span id="toolLabelCenterLine">センターライン</span></button>
+          <button class="tool" data-tool="centerCircle" type="button"><span class="tb-icon tb-center-circle"></span><span id="toolLabelCenterCircle">センターサークル</span></button>
+          <button class="tool" data-tool="shapeCircle" type="button"><span class="tb-icon tb-shape-circle"></span><span>円</span></button>
+          <button class="tool" data-tool="horizontalLine" type="button"><span class="tb-icon tb-horizontal"></span><span>横線</span></button>
+          <button class="tool" data-tool="verticalLine" type="button"><span class="tb-icon tb-vertical"></span><span>縦線</span></button>
+        </div></div>
+        <div class="tools-section"><p class="tool-section-title">その他</p><div class="tools">
+          <button class="tool" data-tool="text" type="button"><span class="tb-icon tb-text">T</span><span>テキスト</span></button>
+          <button class="tool" data-tool="line" type="button"><span class="tb-icon tb-line"></span><span>白線</span></button>
+          <button class="tool" data-tool="arrow" type="button"><span class="tb-icon tb-arrow"></span><span>矢印</span></button>
+          <button class="tool" data-tool="dash" type="button"><span class="tb-icon tb-dash"></span><span>点線矢印</span></button>
+        </div></div>
+        <div class="color-box"><p>パーツ色</p><div class="color-row"><input id="partColor" type="color" value="#ffffff"><button id="applyColorBtn" type="button">選択中に適用</button></div></div>
+        <div class="rotation-box"><p>向き</p><div><button id="rotateLeftBtn" type="button">↺ 左回転</button><span id="rotationValue">0°</span><button id="rotateRightBtn" type="button">右回転 ↻</button></div></div>
+        <div class="tool-actions"><button id="undoBtn" type="button">一つ戻す</button><button id="clearBtn" type="button" class="danger">この図をクリア</button></div>
       </aside>
-
       <aside class="panel notes-panel">
-        <h3 id="noteTitle">W-upの内容</h3>
-        <label>オーガナイズ
-          <textarea id="organize" rows="7" placeholder="人数、配置、コートサイズ、開始方法など"></textarea>
-        </label>
-        <label>ルール
-          <textarea id="rules" rows="7" placeholder="得点条件、タッチ制限、交代方法など"></textarea>
-        </label>
-        <label>コーチングポイント
-          <textarea id="coaching" rows="6" placeholder="観るポイント、声かけ、成功基準"></textarea>
-        </label>
+        <h3>メモ</h3>
+        <label>目的<textarea id="purpose" rows="4"></textarea></label>
+        <label>オーガナイズ<textarea id="org" rows="4"></textarea></label>
+        <label>コーチングポイント<textarea id="coaching" rows="5"></textarea></label>
+        <label>評価<textarea id="evaluation" rows="4"></textarea></label>
+        <div class="save-actions"><button id="newBlankBtn" type="button">新規</button><button id="saveBtn" type="button" class="primary">保存</button></div>
       </aside>
     </section>
   </section>
 
-  <!-- SEARCH PAGE -->
   <section id="searchPage" class="page">
-    <section class="page-head">
-      <div>
-        <p class="small white">Search</p>
-        <h2>検索ページ</h2>
+    <section class="panel">
+      <h2>指導案検索</h2>
+      <div class="searchbar">
+        <input id="keyword" placeholder="キーワード">
+        <select id="partFilter"><option value="">全パート</option><option value="wup">W-up</option><option value="tr1">TR1</option><option value="tr2">TR2</option><option value="game">Game</option></select>
+        <select id="categoryFilter"><option value="">全分類</option></select>
+        <select id="tagFilter"><option value="">全タグ</option></select>
+        <button id="clearSearchBtn" type="button">クリア</button>
       </div>
-      <span id="countBadge">0件</span>
+      <div id="resultList" class="card-list"></div>
     </section>
-
-    <section class="panel search-panel">
-      <input id="keyword" placeholder="キーワード検索：タイトル・ルール・コーチングなど">
-      <select id="partFilter">
-        <option value="">全項目</option>
-        <option value="wup">W-up</option>
-        <option value="tr1">TR1</option>
-        <option value="tr2">TR2</option>
-        <option value="game">Game</option>
-      </select>
-      <select id="categoryFilter"></select>
-      <input id="tagFilter" placeholder="タグ検索">
-      <button id="clearSearchBtn">条件クリア</button>
-      <div id="tagList" class="tag-list wide"></div>
-    </section>
-
-    <section id="cards" class="cards"></section>
   </section>
 
-
-  <!-- MATCH RESULTS PAGE -->
-  
-<section id="resultsPage" class="page">
-    <section class="page-head">
-      <div>
-        <p class="small white">Match Result</p>
-        <h2>試合結果</h2>
-      </div>
-      <button id="newMatchBtn" class="primary">入力クリア</button>
-    </section>
-
-    <section class="panel match-form-panel">
-      <input type="hidden" id="matchId">
-
-      <label>試合タイプ
-        <select id="matchType">
-          <option value="official">公式戦</option>
-          <option value="trm">TRM</option>
-        </select>
-      </label>
-
-      <label>試合名
-        <input id="matchName" placeholder="例：TRM / 〇〇リーグ">
-      </label>
-
-      <label>対象カテゴリー
-        <select id="matchCategory"></select>
-      </label>
-
-      <label>対戦相手
-        <input id="opponentName" placeholder="例：〇〇FC">
-      </label>
-
-      <label>日付
-        <input id="matchDate" type="date">
-      </label>
-
-      <label id="trmCountWrap">TRM本数
-        <select id="trmCount">
-          <option value="3">3本</option>
-          <option value="4">4本</option>
-          <option value="5">5本</option>
-          <option value="6">6本</option>
-        </select>
-      </label>
-
-      <div class="wide score-config-note" id="matchScoreNote">公式戦は前半 / 後半、TRMは3〜6本のスコアを入力できます。</div>
-
-      <div id="dynamicScoreGrid" class="score-grid"></div>
-
-      <section class="wide lineup-panel">
-        <div class="lineup-head">
-          <div>
-            <h3 id="memberPanelTitle">スタメン表示 / フォーメーション</h3>
-            <p id="memberPanelNote">設定ページで登録した選手を、背番号つきでポジションに配置できます。</p>
-          </div>
-          <label>フォーメーション
-            <input id="formationInput" placeholder="例：4-4-2" value="4-4-2">
-          </label>
-        </div>
-
-        <div id="memberEditorRoot" class="member-editor-root"></div>
+  <section id="resultsPage" class="page">
+    <section class="panel">
+      <div class="section-head"><h2>試合結果</h2><button id="newMatchBtn" type="button">新規</button></div>
+      <section class="match-form">
+        <input type="hidden" id="matchId">
+        <label>試合種別<select id="matchType"><option value="official">公式戦</option><option value="trm">TRM</option></select></label>
+        <label>TRM本数<select id="trmCount"><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
+        <label>試合名<input id="matchName"></label>
+        <label>対象<select id="matchCategory"></select></label>
+        <label>相手<input id="opponentName"></label>
+        <label>日付<input id="matchDate" type="date"></label>
+        <label>フォーメーション<input id="formationInput" value="4-4-2"></label>
+        <div id="scoreInputs" class="score-inputs wide"></div>
+        <section class="wide lineup-panel">
+          <h3 id="memberPanelTitle">スタメン表示 / フォーメーション</h3>
+          <p id="memberPanelNote">選手マスターから選択できます。</p>
+          <div id="memberEditorRoot"></div>
+        </section>
+        <label class="wide">動画URL<input id="videoUrl"></label>
+        <label class="wide">メモ<textarea id="matchMemo" rows="4"></textarea></label>
+        <button id="saveMatchBtn" type="button" class="primary wide">試合結果を保存</button>
       </section>
-
-      <label class="wide">動画URL
-        <input id="videoUrl" type="url" placeholder="YouTube / Google Drive / Hudl などのURL">
-      </label>
-
-      <label class="wide">メモ
-        <textarea id="matchMemo" rows="5" placeholder="試合内容、良かった点、課題、次回につなげること"></textarea>
-      </label>
-
-      <div class="match-actions">
-        <button id="saveMatchBtn" class="primary">試合結果を保存</button>
-      </div>
+      <div id="matchList" class="card-list"></div>
     </section>
-
-    <section class="section-title">
-      <div>
-        <p class="small white">History</p>
-        <h2>試合結果一覧 <span id="matchYearBadge" class="year-badge"></span></h2>
-      </div>
-      <span id="matchCountBadge">0件</span>
-    </section>
-
-    <section id="matchList" class="match-list"></section>
   </section>
 
-
-
-  <!-- MATERIALS PAGE -->
   <section id="materialsPage" class="page">
-    <section class="page-head">
-      <div>
-        <p class="small white">Materials</p>
-        <h2>資料</h2>
-      </div>
-      <button id="clearMaterialFormBtn" class="primary">入力クリア</button>
+    <section class="panel">
+      <div class="section-head"><h2>資料</h2><button id="clearMaterialFormBtn" type="button">入力クリア</button></div>
+      <section class="material-form">
+        <input type="hidden" id="materialId">
+        <label>資料名<input id="materialTitle"></label>
+        <label>対象<select id="materialCategory"></select></label>
+        <label>日付<input id="materialDate" type="date"></label>
+        <label class="wide">PDF / PowerPoint<input id="materialFileInput" type="file" accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"></label>
+        <label class="wide">メモ<textarea id="materialMemo" rows="3"></textarea></label>
+        <button id="saveMaterialBtn" type="button" class="primary wide">資料を保存</button>
+      </section>
+      <div id="materialList" class="card-list"></div>
     </section>
-
-    <section class="panel material-form-panel">
-      <input type="hidden" id="materialId">
-
-      <label>資料名
-        <input id="materialTitle" placeholder="例：ビルドアップ座学資料">
-      </label>
-
-      <label>対象カテゴリー
-        <select id="materialCategory"></select>
-      </label>
-
-      <label>日付
-        <input id="materialDate" type="date">
-      </label>
-
-      <label class="wide">PDF / PowerPoint
-        <input id="materialFileInput" type="file" accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
-      </label>
-
-      <div id="materialFileInfo" class="wide material-file-info">ファイル未選択</div>
-
-      <label class="wide">メモ
-        <textarea id="materialMemo" rows="5" placeholder="座学の内容、使用した場面、対象学年、補足メモなど"></textarea>
-      </label>
-
-      <div class="material-actions">
-        <button id="saveMaterialBtn" class="primary">資料を保存</button>
-      </div>
-    </section>
-
-    <section class="section-title">
-      <div>
-        <p class="small white">Library</p>
-        <h2>資料一覧 <span id="materialYearBadge" class="year-badge"></span></h2>
-      </div>
-      <span id="materialCountBadge">0件</span>
-    </section>
-
-    <section id="materialList" class="material-list"></section>
   </section>
 
-  <!-- SETTINGS PAGE -->
   <section id="settingsPage" class="page">
-    <section class="page-head">
-      <div>
-        <p class="small white">Master Settings</p>
-        <h2>設定ページ</h2>
+    <section class="panel">
+      <h2>設定 / マスター</h2>
+      <div class="settings-grid">
+        <section class="master-card">
+          <h3>基本マスター</h3>
+          <label>分類<textarea id="masterCategories" rows="3"></textarea></label>
+          <label>対象<textarea id="masterAges" rows="3"></textarea></label>
+          <label>時間<textarea id="masterTimes" rows="3"></textarea></label>
+          <label>タグ<textarea id="masterTags" rows="3"></textarea></label>
+          <label>コート仕様<select id="surfaceType"><option value="soccer">サッカー</option><option value="futsal">フットサル</option></select></label>
+          <button id="saveMastersBtn" type="button" class="primary">マスター保存</button>
+        </section>
+        <section class="master-card">
+          <h3>選手マスター</h3>
+          <div class="player-form-row"><input id="playerNumberInput" placeholder="背番号"><input id="playerNameInput" placeholder="名前"><button id="addPlayerBtn" type="button">追加</button></div>
+          <div id="playerMasterList" class="player-list"></div>
+        </section>
       </div>
-      <button id="saveMastersBtn" class="primary">マスタ保存</button>
     </section>
+  </section>
 
-    <section class="settings-grid">
-      <section class="panel master-card surface-master-card">
-        <h3>コート仕様</h3>
-        <p>作成図やプレビューの見た目を、サッカー芝生 / フットサルコートで切り替えできます。</p>
-        <label>表示タイプ
-          <select id="surfaceType">
-            <option value="soccer">サッカー芝生</option>
-            <option value="futsal">フットサルコート</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="panel master-card logo-master-card">
-        <h3>ロゴデータ</h3>
-        <p>TOP画面とヘッダーに表示するチームロゴを登録できます。現在は TeamBoard ロゴを初期設定しています。</p>
-        <div class="logo-setting-row">
-          <div class="logo-large-preview" id="settingsLogoPreview">⚽</div>
-          <div class="logo-setting-actions">
-            <label class="file-label">
-              ロゴ画像を選択
-              <input id="logoFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
-            </label>
-            <button id="clearLogoBtn" type="button">ロゴ削除</button>
-            <p class="mini-note">PNG / JPG / WebP / SVG対応。Drive同期データにも含まれます。大きすぎる画像は避けてください。</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel master-card">
-        <h3>タグ管理</h3>
-        <p>よく使うタグを1行ずつ入力。</p>
-        <textarea id="masterTags" rows="12"></textarea>
-      </section>
-
-      <section class="panel master-card">
-        <h3>時間配分管理</h3>
-        <p>例：60分、75分、90分など。</p>
-        <textarea id="masterTimes" rows="12"></textarea>
-      </section>
-
-      <section class="panel master-card">
-        <h3>カテゴリー区分</h3>
-        <p>攻撃、守備、ポゼッションなど。</p>
-        <textarea id="masterCategories" rows="12"></textarea>
-      </section>
-
-      <section class="panel master-card">
-        <h3>対象カテゴリー</h3>
-        <p>U-8、U-10、U-12など。</p>
-        <textarea id="masterAges" rows="12"></textarea>
-      
-      
-      <section class="panel master-card year-master-card">
-        <h3>年度マスター</h3>
-        <p>年度を作成すると、上部の年度切替で選択できます。初期は今の年度です。</p>
-        <div class="year-form-row">
-          <label>年度
-            <input id="yearInput" type="number" min="2000" max="2100" placeholder="例：2026">
-          </label>
-          <button id="addYearBtn" class="primary" type="button">年度追加</button>
-        </div>
-        <div id="yearMasterList" class="year-master-list"></div>
-      </section>
-
-<section class="panel master-card player-master-card">
-        <h3>選手登録</h3>
-        <p>背番号と名前を登録すると、試合結果のスタメン設定で使用できます。</p>
-        <div class="player-form-row">
-          <label>背番号
-            <input id="playerNumberInput" type="number" min="0" placeholder="例：10">
-          </label>
-          <label>名前
-            <input id="playerNameInput" placeholder="例：ENDO">
-          </label>
-          <button id="addPlayerBtn" class="primary" type="button">選手追加</button>
-        </div>
-        <div id="playerMasterList" class="player-master-list"></div>
-      </section>
-
+  <section id="syncPage" class="page">
+    <section class="panel">
+      <h2>入出力</h2>
+      <p>V23互換の保存データをJSONで書き出し・読み込みできます。</p>
+      <div class="sync-actions">
+        <button id="downloadBtn" type="button" class="primary">JSONを書き出し</button>
+        <label class="import-label">JSONを読み込み<input id="importJsonInput" type="file" accept=".json"></label>
+      </div>
+      <pre id="syncStatus"></pre>
     </section>
   </section>
 </main>
 
-<dialog id="syncDialog">
-  <div class="dialog-body">
-    <h2>Drive同期</h2>
-    <p>Google Apps ScriptのURLを設定すると、Google Drive内のJSONデータに保存・読み込みできます。</p>
-    <label>Apps Script URL
-      <input id="gasUrl" placeholder="https://script.google.com/macros/s/....../exec">
-    </label>
-    <label>チームキー
-      <input id="teamKey" placeholder="例：teamboard-2026">
-    </label>
-    <div class="sync-actions">
-      <button id="saveSyncSettingBtn" class="primary">設定保存</button>
-      <button id="pullBtn">Driveから読み込み</button>
-      <button id="pushBtn">Driveへ保存</button>
-      <button id="downloadBtn">JSON保存</button>
-    </div>
-  </div>
-  <form method="dialog"><button>閉じる</button></form>
-</dialog>
-
-<dialog id="previewDialog">
-  <div id="previewBody"></div>
-  <form method="dialog"><button>閉じる</button></form>
-</dialog>
-
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-page="homePage" type="button">TOP</button>
+  <button class="nav-btn" data-page="createPage" type="button">作成</button>
+  <button class="nav-btn" data-page="searchPage" type="button">検索</button>
+  <button class="nav-btn" data-page="resultsPage" type="button">結果</button>
+  <button class="nav-btn" data-page="materialsPage" type="button">資料</button>
+  <button class="nav-btn" data-page="settingsPage" type="button">設定</button>
+</nav>
 <div id="toast"></div>
 <script src="app.js"></script>
 </body>
