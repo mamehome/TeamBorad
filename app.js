@@ -393,20 +393,68 @@ function courtAreaShape(x,y,r=0,s=1){
   return type === "futsal" ? futsalGoalAreaShape(x,y,r,s) : soccerPenaltyShape(x,y,r,s);
 }
 function goalFrameShape(x,y,r=0,s=1){
-  const w = 128*s, h = 68*s, depth = 34*s;
-  const sw = Math.max(3,6*s);
-  const mesh = Math.max(1.5,2.2*s);
-  const left = x - w/2, right = x + w/2, top = y - h/2, bottom = y + h/2;
+  const frontW = 136*s;
+  const frontH = 92*s;
+  const depthX = 22*s;
+  const depthY = 18*s;
+  const stroke = Math.max(4, 8*s);
+  const netStroke = Math.max(1.3, 2.4*s);
+  const innerPad = 14*s;
+  const left = x - frontW/2;
+  const right = x + frontW/2;
+  const top = y - frontH/2;
+  const bottom = y + frontH/2;
+  const sideTop = top - depthY;
+  const sideBottom = bottom + depthY;
+  const sideLeft = left - depthX;
+  const sideRight = right + depthX;
+
+  const cols = 7;
+  const rows = 4;
+  let backNet = "";
+  for(let i=1;i<cols;i++){
+    const vx = left + (frontW/cols)*i;
+    backNet += `<line x1="${vx}" y1="${top+innerPad*0.55}" x2="${vx}" y2="${bottom-innerPad*0.55}" stroke="#fff" stroke-width="${netStroke}" stroke-linecap="round"/>`;
+  }
+  for(let j=1;j<rows;j++){
+    const hy = top + (frontH/rows)*j;
+    backNet += `<line x1="${left+innerPad*0.55}" y1="${hy}" x2="${right-innerPad*0.55}" y2="${hy}" stroke="#fff" stroke-width="${netStroke}" stroke-linecap="round"/>`;
+  }
+
+  let topNet = "";
+  for(let i=0;i<7;i++){
+    const tx = left + 12*s + i*(frontW-24*s)/6;
+    topNet += `<line x1="${tx}" y1="${top}" x2="${tx-depthX*0.72}" y2="${sideTop}" stroke="#fff" stroke-width="${netStroke}" stroke-linecap="round"/>`;
+  }
+  topNet += `<line x1="${left+8*s}" y1="${top-depthY*0.24}" x2="${right-8*s}" y2="${top-depthY*0.24}" stroke="#fff" stroke-width="${netStroke}" stroke-linecap="round"/>`;
+
+  let leftNet = "";
+  let rightNet = "";
+  for(let j=1;j<4;j++){
+    const ly = top + (frontH/4)*j;
+    leftNet += `<line x1="${left}" y1="${ly}" x2="${sideLeft}" y2="${ly + (j-2)*1.5*s}" stroke="#fff" stroke-width="${netStroke}" stroke-linecap="round"/>`;
+    rightNet += `<line x1="${right}" y1="${ly}" x2="${sideRight}" y2="${ly + (j-2)*1.5*s}" stroke="#fff" stroke-width="${netStroke}" stroke-linecap="round"/>`;
+  }
+  for(let i=1;i<3;i++){
+    const px = left - (depthX/3)*i;
+    leftNet += `<line x1="${px}" y1="${sideTop+8*s}" x2="${px}" y2="${sideBottom-8*s}" stroke="#fff" stroke-width="${netStroke}" stroke-linecap="round"/>`;
+    const rx = right + (depthX/3)*i;
+    rightNet += `<line x1="${rx}" y1="${sideTop+8*s}" x2="${rx}" y2="${sideBottom-8*s}" stroke="#fff" stroke-width="${netStroke}" stroke-linecap="round"/>`;
+  }
+
   return `<g transform="rotate(${r} ${x} ${y})">
-    <path d="M ${left} ${bottom} L ${left} ${top} L ${right} ${top} L ${right} ${bottom}" fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M ${left} ${top} L ${left-depth} ${top-depth*.38} L ${right-depth} ${top-depth*.38} L ${right} ${top}" fill="none" stroke="#fff" stroke-width="${Math.max(2,3*s)}" stroke-linejoin="round"/>
-    <path d="M ${left} ${bottom} L ${left-depth} ${bottom+depth*.38} L ${right-depth} ${bottom+depth*.38} L ${right} ${bottom}" fill="none" stroke="#fff" stroke-width="${Math.max(2,3*s)}" stroke-linejoin="round"/>
-    <line x1="${left-depth}" y1="${top-depth*.38}" x2="${left-depth}" y2="${bottom+depth*.38}" stroke="#fff" stroke-width="${Math.max(2,3*s)}"/>
-    <line x1="${right-depth}" y1="${top-depth*.38}" x2="${right-depth}" y2="${bottom+depth*.38}" stroke="#fff" stroke-width="${Math.max(2,3*s)}"/>
-    <g opacity=".55">
-      ${[0.25,0.5,0.75].map(t=>`<line x1="${left + w*t}" y1="${top+3*s}" x2="${left-depth + w*t}" y2="${top-depth*.38+3*s}" stroke="#fff" stroke-width="${mesh}"/>`).join("")}
-      ${[0.35,0.7].map(t=>`<line x1="${left+2*s}" y1="${top + h*t}" x2="${right-2*s}" y2="${top + h*t}" stroke="#fff" stroke-width="${mesh}"/>`).join("")}
-    </g>
+    <path d="M ${left} ${top} L ${sideLeft} ${sideTop} L ${sideRight} ${sideTop} L ${right} ${top}" fill="none" stroke="#fff" stroke-width="${stroke}" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M ${left} ${bottom} L ${left} ${top} L ${right} ${top} L ${right} ${bottom}" fill="none" stroke="#fff" stroke-width="${stroke}" stroke-linejoin="round" stroke-linecap="round"/>
+    <line x1="${left}" y1="${top}" x2="${sideLeft}" y2="${sideTop}" stroke="#fff" stroke-width="${stroke}" stroke-linecap="round"/>
+    <line x1="${left}" y1="${bottom}" x2="${sideLeft}" y2="${sideBottom}" stroke="#fff" stroke-width="${stroke}" stroke-linecap="round"/>
+    <line x1="${right}" y1="${top}" x2="${sideRight}" y2="${sideTop}" stroke="#fff" stroke-width="${stroke}" stroke-linecap="round"/>
+    <line x1="${right}" y1="${bottom}" x2="${sideRight}" y2="${sideBottom}" stroke="#fff" stroke-width="${stroke}" stroke-linecap="round"/>
+    <line x1="${sideLeft}" y1="${sideTop}" x2="${sideLeft}" y2="${sideBottom}" stroke="#fff" stroke-width="${stroke}" stroke-linecap="round"/>
+    <line x1="${sideRight}" y1="${sideTop}" x2="${sideRight}" y2="${sideBottom}" stroke="#fff" stroke-width="${stroke}" stroke-linecap="round"/>
+    ${backNet}
+    ${topNet}
+    ${leftNet}
+    ${rightNet}
   </g>`;
 }
 function ballShape(x,y,s=1){

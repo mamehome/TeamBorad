@@ -1995,27 +1995,75 @@ body[data-surface="futsal"] #board{
 }
 
 
-/* TeamBoard v32 goal/futsal/bench */
+/* TeamBoard v34 goal icon redesign */
 .goal-icon{
-  width:24px;
-  height:16px;
-  border:3px solid currentColor;
-  border-bottom:none;
-  border-radius:4px 4px 0 0;
+  width:26px;
+  height:18px;
   display:inline-block;
   position:relative;
+  border:3px solid currentColor;
+  border-radius:2px;
+  box-sizing:border-box;
+  background:
+    linear-gradient(to right,
+      transparent 0,
+      transparent 16%,
+      currentColor 16%,
+      currentColor 18%,
+      transparent 18%,
+      transparent 32%,
+      currentColor 32%,
+      currentColor 34%,
+      transparent 34%,
+      transparent 48%,
+      currentColor 48%,
+      currentColor 50%,
+      transparent 50%,
+      transparent 64%,
+      currentColor 64%,
+      currentColor 66%,
+      transparent 66%,
+      transparent 80%,
+      currentColor 80%,
+      currentColor 82%,
+      transparent 82%) center/100% 100% no-repeat;
+}
+.goal-icon::before{
+  content:"";
+  position:absolute;
+  left:-6px;
+  right:-6px;
+  top:-7px;
+  height:6px;
+  border:2px solid currentColor;
+  border-bottom:none;
+  transform:perspective(24px) rotateX(48deg);
+  transform-origin:center bottom;
 }
 .goal-icon::after{
   content:"";
   position:absolute;
-  left:-7px;
-  top:-8px;
-  width:24px;
-  height:16px;
-  border:2px solid currentColor;
-  border-bottom:none;
-  opacity:.55;
-  transform:skewX(-18deg);
+  left:0;
+  right:0;
+  top:0;
+  bottom:0;
+  background:
+    linear-gradient(to bottom,
+      transparent 0,
+      transparent 22%,
+      currentColor 22%,
+      currentColor 24%,
+      transparent 24%,
+      transparent 48%,
+      currentColor 48%,
+      currentColor 50%,
+      transparent 50%,
+      transparent 74%,
+      currentColor 74%,
+      currentColor 76%,
+      transparent 76%) center/100% 100% no-repeat;
+  opacity:.92;
+  pointer-events:none;
 }
 .official-bench-group{
   background:rgba(241,248,243,.78);
