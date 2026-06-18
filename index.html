@@ -164,6 +164,10 @@
           <button class="tool" data-tool="free"><span class="circle yellow"></span>フリー</button>
           <button class="tool" data-tool="cone"><span class="cone"></span>コーン</button>
           <button class="tool" data-tool="marker"><span class="marker"></span>マーカー</button>
+          <button class="tool" data-tool="circlePart"><span class="mini-color-circle"></span><span>円</span></button>
+          <button class="tool" data-tool="squarePart"><span class="mini-square"></span><span>四角</span></button>
+          <button class="tool" data-tool="hLine"><span class="mini-hline"></span><span>横線</span></button>
+          <button class="tool" data-tool="vLine"><span class="mini-vline"></span><span>縦線</span></button>
 
           <button class="tool" data-tool="centerLine"><span class="mini-line"></span><span id="toolLabelCenterLine">センターライン</span></button>
           <button class="tool" data-tool="centerCircle"><span class="mini-center-circle"></span><span id="toolLabelCenterCircle">センターサークル</span></button>
@@ -177,9 +181,17 @@
           <button class="tool" data-tool="dash"><span class="dash-arrow-icon"></span><span>点線矢印</span></button>
         </div>
 
+        <div class="part-color-box">
+          <label>パーツ色
+            <input id="partColor" type="color" value="#ffffff">
+          </label>
+          <p>選択中パーツがある場合は、そのパーツの色を変更します。</p>
+        </div>
+
         <div class="hint">
           <p>選手・用具：空いている場所をタップすると配置 / 置いた後はドラッグ移動</p>
           <p>白線・矢印・点線矢印：ドラッグして描画 / 端点をドラッグして調整</p>
+          <p>円・横線・縦線：色変更可能。選択後に色を変えられます。</p>
           <p>選択中パーツ：サイズ変更・複製・削除・回転が可能</p>
         </div>
 
@@ -294,8 +306,8 @@
       <section class="wide lineup-panel">
         <div class="lineup-head">
           <div>
-            <h3>スタメン表示 / フォーメーション</h3>
-            <p>設定ページで登録した選手を、背番号つきでポジションに配置できます。</p>
+            <h3>メンバー表示 / フォーメーション</h3>
+            <p>設定ページで登録した選手を、公式戦はスタメン・交代、TRMは本数ごとのメンバーに登録できます。</p>
           </div>
           <label>フォーメーション
             <input id="formationInput" placeholder="例：4-4-2" value="4-4-2">
@@ -304,8 +316,8 @@
 
         <div class="lineup-layout">
           <section class="lineup-block">
-            <h4>スタメン設定</h4>
-            <div id="starterAssignList" class="starter-assign-list"></div>
+            <h4 id="lineupSettingTitle">スタメン設定</h4>
+            <div id="starterAssignList" class="starter-assign-list member-assign-list"></div>
           </section>
 
           <section class="lineup-block">

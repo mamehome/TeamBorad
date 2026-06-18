@@ -1611,3 +1611,129 @@ body[data-surface="futsal"] #board{
 #resultsPage .match-form-panel{
   align-items:start;
 }
+
+
+/* TeamBoard v23 lineup and parts */
+.part-color-box{
+  margin:14px 0;
+  padding:12px;
+  border:1px solid rgba(16,45,28,.12);
+  border-radius:18px;
+  background:rgba(248,251,248,.9);
+}
+.part-color-box label{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  font-weight:900;
+}
+.part-color-box input[type="color"]{
+  width:64px;
+  height:42px;
+  padding:2px;
+  border:1px solid rgba(16,45,28,.16);
+  border-radius:12px;
+  background:#fff;
+}
+.part-color-box p{
+  margin:8px 0 0;
+  font-size:12px;
+  color:#65746b;
+}
+.mini-color-circle{
+  width:20px;
+  height:20px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#fff,#27ae60);
+  border:2px solid #102d1c;
+  display:inline-block;
+}
+.mini-hline,.mini-vline{
+  display:inline-block;
+  background:#102d1c;
+  border-radius:999px;
+}
+.mini-hline{width:26px;height:5px;}
+.mini-vline{width:5px;height:26px;}
+
+.member-assign-list{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  max-height:none;
+  overflow:visible;
+}
+.member-group,.official-sub-group,.saved-member-group{
+  border:1px solid rgba(16,45,28,.12);
+  border-radius:20px;
+  background:rgba(255,255,255,.78);
+  padding:12px;
+}
+.member-group-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  font-weight:950;
+  color:#102d1c;
+  margin-bottom:10px;
+}
+.member-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:8px;
+}
+.member-row{
+  display:grid;
+  grid-template-columns:56px 1fr;
+  gap:8px;
+  align-items:center;
+}
+.sub-grid{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.sub-row{
+  display:grid;
+  grid-template-columns:minmax(150px,1.4fr) minmax(90px,.7fr) minmax(130px,1fr) auto;
+  gap:8px;
+  align-items:end;
+}
+.small-btn{
+  padding:8px 10px;
+  border-radius:12px;
+  min-height:36px;
+  font-size:12px;
+}
+.lineup-mode-note,.preview-title,.lineup-empty-small{
+  font-size:12px;
+  color:#65746b;
+  margin:0 0 8px;
+}
+.match-trm-groups{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;
+}
+.saved-member-group h4{
+  margin:0 0 8px;
+  color:#102d1c;
+}
+@media (max-width: 760px){
+  .sub-row{
+    grid-template-columns:1fr;
+  }
+}
+
+
+/* TeamBoard v24 part redesign */
+.mini-square{
+  width:20px;
+  height:20px;
+  border-radius:4px;
+  border:2px solid #102d1c;
+  background:linear-gradient(135deg,#ffffff,#9be15d);
+  display:inline-block;
+}
