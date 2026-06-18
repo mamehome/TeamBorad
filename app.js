@@ -374,15 +374,18 @@ function soccerPenaltyShape(x,y,r=0,s=1){
 }
 function futsalGoalAreaShape(x,y,r=0,s=1){
   const sw = Math.max(3,6*s);
-  const goalLineX = x - 116*s;
-  const radius = 70*s;
-  const topPostY = y - 42*s;
-  const bottomPostY = y + 42*s;
-  const connectX = goalLineX + 80*s;
+  const goalLineX = x - 118*s;
+  const topY = y - 76*s;
+  const bottomY = y + 76*s;
+  const arcX = goalLineX + 82*s;
+  const spotX = goalLineX + 76*s;
   return `<g transform="rotate(${r} ${x} ${y})">
-    <line x1="${goalLineX}" y1="${y-130*s}" x2="${goalLineX}" y2="${y+130*s}" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"/>
-    <path d="M ${goalLineX} ${topPostY} A ${radius} ${radius} 0 0 1 ${connectX} ${y}" fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"/>
-    <path d="M ${connectX} ${y} A ${radius} ${radius} 0 0 1 ${goalLineX} ${bottomPostY}" fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"/>
+    <line x1="${goalLineX}" y1="${y-128*s}" x2="${goalLineX}" y2="${y+128*s}" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"/>
+    <path d="M ${goalLineX} ${topY}
+             C ${goalLineX+42*s} ${topY} ${arcX} ${y-42*s} ${arcX} ${y}
+             C ${arcX} ${y+42*s} ${goalLineX+42*s} ${bottomY} ${goalLineX} ${bottomY}"
+          fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${spotX}" cy="${y}" r="${Math.max(3,4*s)}" fill="#fff"/>
   </g>`;
 }
 function courtAreaShape(x,y,r=0,s=1){
@@ -390,13 +393,20 @@ function courtAreaShape(x,y,r=0,s=1){
   return type === "futsal" ? futsalGoalAreaShape(x,y,r,s) : soccerPenaltyShape(x,y,r,s);
 }
 function goalFrameShape(x,y,r=0,s=1){
-  const w = 76*s, h = 132*s, d = 42*s, sw = Math.max(3,6*s);
+  const w = 128*s, h = 68*s, depth = 34*s;
+  const sw = Math.max(3,6*s);
+  const mesh = Math.max(1.5,2.2*s);
+  const left = x - w/2, right = x + w/2, top = y - h/2, bottom = y + h/2;
   return `<g transform="rotate(${r} ${x} ${y})">
-    <path d="M ${x-w/2} ${y-h/2} L ${x+w/2} ${y-h/2} L ${x+w/2} ${y+h/2} L ${x-w/2} ${y+h/2}" fill="none" stroke="#fff" stroke-width="${sw}" stroke-linejoin="round"/>
-    <line x1="${x-w/2}" y1="${y-h/2}" x2="${x-w/2-d}" y2="${y-h/2-d*0.45}" stroke="#fff" stroke-width="${Math.max(2,3*s)}"/>
-    <line x1="${x-w/2}" y1="${y+h/2}" x2="${x-w/2-d}" y2="${y+h/2+d*0.45}" stroke="#fff" stroke-width="${Math.max(2,3*s)}"/>
-    <line x1="${x-w/2-d}" y1="${y-h/2-d*0.45}" x2="${x-w/2-d}" y2="${y+h/2+d*0.45}" stroke="#fff" stroke-width="${Math.max(2,3*s)}"/>
-    <line x1="${x-w/2}" y1="${y}" x2="${x-w/2-d}" y2="${y}" stroke="rgba(255,255,255,.8)" stroke-width="${Math.max(1.5,2*s)}"/>
+    <path d="M ${left} ${bottom} L ${left} ${top} L ${right} ${top} L ${right} ${bottom}" fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M ${left} ${top} L ${left-depth} ${top-depth*.38} L ${right-depth} ${top-depth*.38} L ${right} ${top}" fill="none" stroke="#fff" stroke-width="${Math.max(2,3*s)}" stroke-linejoin="round"/>
+    <path d="M ${left} ${bottom} L ${left-depth} ${bottom+depth*.38} L ${right-depth} ${bottom+depth*.38} L ${right} ${bottom}" fill="none" stroke="#fff" stroke-width="${Math.max(2,3*s)}" stroke-linejoin="round"/>
+    <line x1="${left-depth}" y1="${top-depth*.38}" x2="${left-depth}" y2="${bottom+depth*.38}" stroke="#fff" stroke-width="${Math.max(2,3*s)}"/>
+    <line x1="${right-depth}" y1="${top-depth*.38}" x2="${right-depth}" y2="${bottom+depth*.38}" stroke="#fff" stroke-width="${Math.max(2,3*s)}"/>
+    <g opacity=".55">
+      ${[0.25,0.5,0.75].map(t=>`<line x1="${left + w*t}" y1="${top+3*s}" x2="${left-depth + w*t}" y2="${top-depth*.38+3*s}" stroke="#fff" stroke-width="${mesh}"/>`).join("")}
+      ${[0.35,0.7].map(t=>`<line x1="${left+2*s}" y1="${top + h*t}" x2="${right-2*s}" y2="${top + h*t}" stroke="#fff" stroke-width="${mesh}"/>`).join("")}
+    </g>
   </g>`;
 }
 function ballShape(x,y,s=1){
@@ -534,7 +544,7 @@ function toolLabelName(t){
     circlePart:"円", squarePart:"四角", hLine:"横線", vLine:"縦線",
     centerLine:"センターライン", centerCircle:"センターサークル",
     courtArea: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
-    goalFrame:"ゴール枠", goal:"ゴール枠", penalty: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
+    goalFrame:"ゴール", goal:"ゴール", penalty: isFutsal ? "ゴール前エリア" : "ペナルティエリア",
     ball:"ボール", text:"テキスト", line:"白線", arrow:"矢印", dash:"点線矢印"
   };
   return names[t] || t;
@@ -544,7 +554,7 @@ function renderToolPalette(){
   if(el("toolLabelCenterLine")) el("toolLabelCenterLine").textContent = "センターライン";
   if(el("toolLabelCenterCircle")) el("toolLabelCenterCircle").textContent = "センターサークル";
   if(el("toolLabelCourtArea")) el("toolLabelCourtArea").textContent = isFutsal ? "ゴール前エリア" : "ペナルティエリア";
-  if(el("toolLabelGoalFrame")) el("toolLabelGoalFrame").textContent = "ゴール枠";
+  if(el("toolLabelGoalFrame")) el("toolLabelGoalFrame").textContent = "ゴール";
   if(el("toolName")) el("toolName").textContent = toolLabelName(activeTool);
 }
 function setTool(t){
@@ -840,14 +850,36 @@ function num(id){
   return Math.max(0, Number(el(id).value || 0));
 }
 
-let lineupState = { official:{}, officialSubs:[], trm:{} };
+let lineupState = { official:{}, officialSubs:[], officialBench:[], trm:{} };
 let goalEventState = [];
 
-function emptyLineupState(){ return { official:{}, officialSubs:[], trm:{} }; }
+function emptyLineupState(){ return { official:{}, officialSubs:[], officialBench:[], trm:{} }; }
 function playerLabel(p){ return `#${p.number} ${p.name}`; }
 function getPlayers(){ return Array.isArray(masters.players) ? masters.players : []; }
 function sortedPlayers(){ return [...getPlayers()].sort((a,b)=>Number(a.number)-Number(b.number) || String(a.name).localeCompare(String(b.name), "ja")); }
 function playerById(id){ return getPlayers().find(p=>p.id===id); }
+function currentMatchSurface(){ return el("matchSurface") ? (el("matchSurface").value || "soccer") : "soccer"; }
+function formationPitchLines(surface="soccer"){
+  let stripes = "";
+  for(let x=0;x<1000;x+=100){
+    stripes += `<rect x="${x}" y="0" width="50" height="640" fill="rgba(255,255,255,.05)"/>`;
+  }
+  const base = `<rect x="0" y="0" width="1000" height="640" fill="#11813e"/>${stripes}
+    <rect x="24" y="24" width="952" height="592" rx="28" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <line x1="500" y1="24" x2="500" y2="616" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <circle cx="500" cy="320" r="80" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <circle cx="500" cy="320" r="4" fill="#fff"/>`;
+  if(surface === "futsal"){
+    return base + `
+      <path d="M 24 240 C 92 240 130 276 130 320 C 130 364 92 400 24 400" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      <path d="M 976 240 C 908 240 870 276 870 320 C 870 364 908 400 976 400" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>`;
+  }
+  return base + `
+    <rect x="24" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <rect x="820" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <rect x="24" y="255" width="54" height="130" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+    <rect x="922" y="255" width="54" height="130" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>`;
+}
 function currentMatchType(){ return el("matchType") ? (el("matchType").value || "official") : "official"; }
 function currentTrmCount(){ return Math.max(3, Math.min(6, Number(el("trmCount")?.value || 3))); }
 function currentGroupKeys(){
@@ -864,6 +896,7 @@ function ensureLineupState(){
   if(!lineupState || typeof lineupState !== "object") lineupState = emptyLineupState();
   if(!lineupState.official || typeof lineupState.official !== "object") lineupState.official = {};
   if(!Array.isArray(lineupState.officialSubs)) lineupState.officialSubs = [];
+  if(!Array.isArray(lineupState.officialBench)) lineupState.officialBench = [];
   if(!lineupState.trm || typeof lineupState.trm !== "object") lineupState.trm = {};
 }
 function normalizePlayerDeleteInLineup(id){
@@ -958,6 +991,9 @@ function officialUsedIdsExcept(kind="", key=""){
   (lineupState.officialSubs || []).forEach(v=>{
     if(v && v.playerId && !(kind==="sub" && v.id===key)) ids.push(v.playerId);
   });
+  (lineupState.officialBench || []).forEach(v=>{
+    if(v && v.playerId && !(kind==="bench" && v.id===key)) ids.push(v.playerId);
+  });
   return ids;
 }
 function hasDuplicateIds(ids){
@@ -973,12 +1009,14 @@ function validateLineupDuplicates(){
   if(currentMatchType()==="official"){
     const starterIds = Object.values(lineupState.official || {}).map(v=>v && v.playerId).filter(Boolean);
     const subIds = (lineupState.officialSubs || []).map(v=>v && v.playerId).filter(Boolean);
-    const dup = hasDuplicateIds([...starterIds, ...subIds]);
+    const benchIds = (lineupState.officialBench || []).map(v=>v && v.playerId).filter(Boolean);
+    const dup = hasDuplicateIds([...starterIds, ...subIds, ...benchIds]);
     if(dup){
       Object.keys(lineupState.official || {}).forEach(k=>{
         if(lineupState.official[k].playerId === dup) lineupState.official[k].playerId = "";
       });
       lineupState.officialSubs = (lineupState.officialSubs || []).map(s => s.playerId === dup ? {...s, playerId:"", number:"", name:""} : s);
+      lineupState.officialBench = (lineupState.officialBench || []).map(s => s.playerId === dup ? {...s, playerId:"", number:"", name:""} : s);
       const p = playerById(dup);
       toast(`${p ? playerLabel(p) : "同じ選手"} が重複しているため解除しました`);
       return false;
@@ -1020,6 +1058,17 @@ function captureStarterStateFromDOM(){
       official[slot.slotId] = lineupEntryFromSelect(sel.value || "", slot);
     });
     lineupState.official = official;
+    lineupState.officialBench = Array.from(document.querySelectorAll("[data-bench-row]")).map(row=>{
+      const playerId = row.querySelector("[data-bench-player]")?.value || "";
+      const p = playerById(playerId);
+      return {
+        id: row.dataset.benchRow || uid(),
+        label: row.dataset.benchLabel || "",
+        playerId,
+        number: p ? p.number : "",
+        name: p ? p.name : ""
+      };
+    }).filter(s=>s.playerId);
     lineupState.officialSubs = Array.from(document.querySelectorAll("[data-sub-row]")).map(row=>{
       const playerId = row.querySelector("[data-sub-player]")?.value || "";
       const p = playerById(playerId);
@@ -1049,6 +1098,7 @@ function setStarterStateFromSaved(startersOrLineup, subs){
     lineupState = {
       official: startersOrLineup.official || {},
       officialSubs: startersOrLineup.officialSubs || [],
+      officialBench: startersOrLineup.officialBench || [],
       trm: startersOrLineup.trm || {}
     };
     return;
@@ -1093,6 +1143,26 @@ function renderLineupGroup(groupKey, stateObj){
     </div>
   </section>`;
 }
+
+function renderOfficialBench(){
+  ensureLineupState();
+  const rows = Array.from({length:10},(_,i)=>{
+    const saved = (lineupState.officialBench || [])[i] || {};
+    return {id:saved.id || `bench_${i+1}`, label:`ベンチ${i+1}`, playerId:saved.playerId || ""};
+  });
+  return `<section class="member-group official-bench-group">
+    <div class="member-group-title"><span>ベンチメンバー 10人</span></div>
+    <div class="member-grid bench-grid">
+      ${rows.map((s,i)=>`
+        <div class="starter-row member-row" data-bench-row="${esc(s.id)}" data-bench-label="${esc(s.label)}">
+          <span class="slot-label">${esc(s.label)}</span>
+          <select data-bench-player>${optionsHtml(s.playerId || "", officialUsedIdsExcept("bench", s.id || ""))}</select>
+        </div>
+      `).join("")}
+    </div>
+  </section>`;
+}
+
 function renderOfficialSubs(){
   const subs = lineupState.officialSubs || [];
   const rows = subs.length ? subs : [{id:uid(), playerId:"", minute:"", position:""}];
@@ -1120,7 +1190,7 @@ function renderOfficialSubs(){
   </section>`;
 }
 function bindLineupInputs(){
-  document.querySelectorAll("[data-starter-slot], [data-sub-player]").forEach(elm=>{
+  document.querySelectorAll("[data-starter-slot], [data-sub-player], [data-bench-player]").forEach(elm=>{
     elm.onchange = ()=>{
       captureStarterStateFromDOM();
       const ok = validateLineupDuplicates();
@@ -1175,7 +1245,7 @@ function renderStarterAssignments(){
       keys.map(key => renderLineupGroup(key, lineupState.trm[key] || {})).join("");
   }else{
     if(title) title.textContent = "スタメン / 交代設定";
-    wrap.innerHTML = renderLineupGroup("official_start", lineupState.official || {}) + renderOfficialSubs();
+    wrap.innerHTML = renderLineupGroup("official_start", lineupState.official || {}) + renderOfficialBench() + renderOfficialSubs();
   }
   bindLineupInputs();
   renderFormationPreview();
@@ -1213,10 +1283,6 @@ function selectedEntriesForPreview(groupKey){
 }
 function formationPreviewSvg(groupKey){
   const coords = selectedEntriesForPreview(groupKey);
-  let stripes = "";
-  for(let x=0;x<1000;x+=100){
-    stripes += `<rect x="${x}" y="0" width="50" height="640" fill="rgba(255,255,255,.05)"/>`;
-  }
   const playersSvg = coords.map(p => `
     <g transform="translate(${p.x},${p.y})">
       <circle cx="0" cy="0" r="27" fill="${p.number ? "#ffffff" : "rgba(255,255,255,.22)"}" stroke="#102d1c" stroke-width="3"/>
@@ -1226,16 +1292,7 @@ function formationPreviewSvg(groupKey){
   `).join("");
   return `
     <svg viewBox="0 0 1000 640" aria-label="formation preview">
-      <rect x="0" y="0" width="1000" height="640" fill="#11813e"/>
-      ${stripes}
-      <rect x="24" y="24" width="952" height="592" rx="28" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <line x1="500" y1="24" x2="500" y2="616" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <circle cx="500" cy="320" r="80" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <circle cx="500" cy="320" r="4" fill="#fff"/>
-      <rect x="24" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <rect x="820" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <rect x="24" y="255" width="54" height="130" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <rect x="922" y="255" width="54" height="130" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      ${formationPitchLines(currentMatchSurface())}
       ${playersSvg}
     </svg>
   `;
@@ -1266,7 +1323,7 @@ function collectLineupFromState(){
   if(currentMatchType()==="trm"){
     return {trm: clone(lineupState.trm || {})};
   }
-  return {official: clone(lineupState.official || {}), officialSubs: clone(lineupState.officialSubs || [])};
+  return {official: clone(lineupState.official || {}), officialBench: clone(lineupState.officialBench || []), officialSubs: clone(lineupState.officialSubs || [])};
 }
 function collectStartersFromState(){
   ensureLineupState();
@@ -1543,6 +1600,7 @@ function clearMatchForm(){
   el("matchId").value = "";
   el("matchType").value = "official";
   el("matchName").value = "公式戦";
+  el("matchSurface").value = "soccer";
   el("matchCategory").value = masters.ages[0] || "U-12";
   el("opponentName").value = "";
   el("matchDate").value = todayISO();
@@ -1570,6 +1628,7 @@ function readMatchForm(){
     id: el("matchId").value || uid(),
     year: activeYear,
     matchType: el("matchType").value || "official",
+    matchSurface: el("matchSurface").value || "soccer",
     name: el("matchName").value.trim() || (el("matchType").value === "trm" ? "TRM" : "公式戦"),
     category: el("matchCategory").value || "",
     opponent: el("opponentName").value.trim(),
@@ -1611,6 +1670,7 @@ function editMatch(id){
   if(!m) return;
   el("matchId").value = m.id;
   el("matchType").value = m.matchType || "official";
+  el("matchSurface").value = m.matchSurface || "soccer";
   el("matchName").value = m.name || ((m.matchType === "trm") ? "TRM" : "公式戦");
   el("matchCategory").value = m.category || masters.ages[0] || "";
   el("opponentName").value = m.opponent || "";
@@ -1630,6 +1690,33 @@ function editMatch(id){
   renderStarterAssignments();
   page("resultsPage");
 }
+
+function copyMatchLineupOnly(id){
+  const m = matches.find(x => x.id === id);
+  if(!m) return;
+  clearMatchForm();
+  el("matchId").value = "";
+  el("matchType").value = m.matchType || "official";
+  el("matchSurface").value = m.matchSurface || "soccer";
+  el("matchName").value = (m.matchType === "trm") ? "TRM" : "公式戦";
+  el("matchCategory").value = m.category || masters.ages[0] || "";
+  el("opponentName").value = "";
+  el("matchDate").value = todayISO();
+  clearVideoInputs();
+  el("trmCount").value = String(m.trmCount || 3);
+  el("formationInput").value = m.formation || "4-4-2";
+  el("matchMemo").value = "";
+  const copiedLineup = m.lineup ? clone(m.lineup) : {official:{}, officialBench:[], officialSubs:[], trm:{}};
+  if(copiedLineup.officialSubs) copiedLineup.officialSubs = [];
+  setStarterStateFromSaved(copiedLineup, []);
+  setGoalEventsFromSaved([]);
+  renderScoreInputs();
+  renderGoalEventInputs();
+  renderStarterAssignments();
+  page("resultsPage");
+  toast("メンバーとフォーメーションをコピーしました");
+}
+
 function deleteMatch(id){
   if(!confirm("この試合結果を削除しますか？")) return;
   matches = matches.filter(m => m.id !== id);
@@ -1650,6 +1737,7 @@ function matchScoreBadges(m){
 function lineupEntriesForMatch(match, groupKey){
   if(match.lineup){
     if(groupKey==="official_start") return Object.values(match.lineup.official || {}).filter(s=>s && s.playerId);
+    if(groupKey==="official_bench") return (match.lineup.officialBench || []).filter(s=>s && s.playerId);
     if(groupKey.startsWith("trm_")) return Object.values((match.lineup.trm || {})[groupKey] || {}).filter(s=>s && s.playerId);
   }
   if(groupKey==="official_start") return (match.starters || []).filter(s=>s && s.playerId);
@@ -1660,10 +1748,6 @@ function miniFormationSVG(match, groupKey="official_start"){
   const coords = buildFormationCoords(match.formation);
   const starters = {};
   lineupEntriesForMatch(match, groupKey).forEach(s=>{ if(s && s.slotId) starters[s.slotId] = s; });
-  let stripes = "";
-  for(let x=0;x<1000;x+=100){
-    stripes += `<rect x="${x}" y="0" width="50" height="640" fill="rgba(255,255,255,.05)"/>`;
-  }
   const body = coords.map(p=>{
     const st = starters[p.slotId] || {};
     const number = st.number || "";
@@ -1675,14 +1759,7 @@ function miniFormationSVG(match, groupKey="official_start"){
     </g>`;
   }).join("");
   return `<div class="mini-lineup-board"><svg viewBox="0 0 1000 640">
-      <rect x="0" y="0" width="1000" height="640" fill="#11813e"/>
-      ${stripes}
-      <rect x="24" y="24" width="952" height="592" rx="28" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <line x1="500" y1="24" x2="500" y2="616" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <circle cx="500" cy="320" r="80" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <circle cx="500" cy="320" r="4" fill="#fff"/>
-      <rect x="24" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
-      <rect x="820" y="180" width="156" height="280" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="4"/>
+      ${formationPitchLines(match.matchSurface || "soccer")}
       ${body}
     </svg></div>`;
 }
@@ -1695,7 +1772,7 @@ function matchLineupBlock(m){
   if((m.matchType || "official") === "trm"){
     const n = Math.max(3, Math.min(6, Number(m.trmCount || 3)));
     return `<div class="match-lineup">
-      <div><span class="lineup-formation-badge">${esc(m.formation)}</span></div>
+      <div><span class="lineup-formation-badge">${esc(m.formation)}</span><span class="lineup-formation-badge">${(m.matchSurface || "soccer") === "futsal" ? "フットサル" : "サッカー"}</span></div>
       <div class="match-trm-groups">
         ${Array.from({length:n},(_,i)=>{
           const key = `trm_${i+1}`;
@@ -1710,11 +1787,13 @@ function matchLineupBlock(m){
     </div>`;
   }
   const starters = lineupEntriesForMatch(m, "official_start");
+  const bench = m.lineup?.officialBench || [];
   const subs = m.lineup?.officialSubs || m.subs || [];
   return `<div class="match-lineup">
-    <div><span class="lineup-formation-badge">${esc(m.formation)}</span></div>
+    <div><span class="lineup-formation-badge">${esc(m.formation)}</span><span class="lineup-formation-badge">${(m.matchSurface || "soccer") === "futsal" ? "フットサル" : "サッカー"}</span></div>
     ${miniFormationSVG(m, "official_start")}
     <section class="saved-member-group"><h4>スタメン</h4>${lineupChipList(starters)}</section>
+    <section class="saved-member-group"><h4>ベンチ</h4>${lineupChipList(bench, "ベンチ登録なし")}</section>
     <section class="saved-member-group"><h4>交代選手</h4>${lineupChipList(subs, "交代選手なし")}</section>
   </div>`;
 }
@@ -1730,7 +1809,8 @@ function renderMatches(){
         <div>
           <h3>${esc(m.name || "TRM")}${m.opponent ? ` vs ${esc(m.opponent)}` : ""}</h3>
           <div class="badges">
-            <span class="badge">${esc(itemYear(m))}</span>\n            <span class="badge match-type-badge ${esc(m.matchType || "official")}">${m.matchType === "trm" ? "TRM" : "公式戦"}</span>
+            <span class="badge">${esc(itemYear(m))}</span>\n            <span class="badge">${(m.matchSurface || "soccer") === "futsal" ? "フットサル" : "サッカー"}</span>
+            <span class="badge match-type-badge ${esc(m.matchType || "official")}">${m.matchType === "trm" ? "TRM" : "公式戦"}</span>
             <span class="badge">対象 ${esc(m.category || "-")}</span>
             ${m.opponent ? `<span class="badge">相手 ${esc(m.opponent)}</span>` : ""}
             <span class="badge">${esc(m.date || "-")}</span>
@@ -1748,6 +1828,7 @@ function renderMatches(){
       ${m.memo ? `<div class="match-memo">${esc(m.memo)}</div>` : ""}
       <div class="card-actions">
         <button data-match-act="edit">編集</button>
+        <button data-match-act="copy">コピー</button>
         <button class="danger" data-match-act="delete">削除</button>
       </div>
     </article>
@@ -1756,6 +1837,7 @@ function renderMatches(){
     b.onclick = () => {
       const id = b.closest("[data-match-id]").dataset.matchId;
       if(b.dataset.matchAct === "edit") editMatch(id);
+      if(b.dataset.matchAct === "copy") copyMatchLineupOnly(id);
       if(b.dataset.matchAct === "delete") deleteMatch(id);
     };
   });
@@ -2023,6 +2105,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
   el("trmCount").onchange=()=>{ renderScoreInputs(); renderStarterAssignments(); };
   el("formationInput").oninput=()=>renderStarterAssignments();
+  el("matchSurface").onchange=()=>renderFormationPreview();
   if(el("addGoalEventBtn")) el("addGoalEventBtn").onclick=addGoalEvent;
   el("partColor").oninput=(e)=>changePartColor(e.target.value);
 
